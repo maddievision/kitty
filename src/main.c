@@ -7,6 +7,11 @@ SoundArea sndarea;
 extern WaveData kickyou;
 extern WaveData duck;
 
+extern void SoundMainRAM();
+extern void* SoundMainRAM_end;
+
+void(*soundMainRAM)();
+
 u8 txt_scrolly = 8;
 
 void dputs(const char* str) {
@@ -17,6 +22,9 @@ void dputs(const char* str) {
 
 int main() {
 	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
+	
+	memcpy32((void*) 0x3003000, (void*) &SoundMainRAM, (u32*)&SoundMainRAM_end - (u32*)&SoundMainRAM);
+	soundMainRAM = (void(*)()) 0x3003000;
 
 	irq_init(NULL);
 	irq_add(II_VBLANK, NULL);
@@ -45,6 +53,7 @@ int main() {
 		VBlankIntrWait();
 		SoundDriverVSync();
 		SoundDriverMain();
+		soundMainRAM();
 		key_poll();
 		
 		if (key_hit(KEY_DIR|KEY_A)) {
