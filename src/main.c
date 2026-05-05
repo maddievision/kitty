@@ -1,22 +1,22 @@
 #include <stdio.h>
 #include <tonc.h>
 #include <tonc_bios.h>
+#include "debug.h"
 #include "sound.h"
+#include "midi.h"
 
 SoundArea sndarea;
+SoundBank sndbank;
 extern WaveData kickyou;
 extern WaveData duck;
-
-u8 txt_scrolly = 8;
-
-void dputs(const char* str) {
-	se_puts(16, txt_scrolly, str, 0);
-	txt_scrolly -= 8;
-	REG_BG0VOFS = txt_scrolly - 8;
-}
+extern void* hello_mid;
+PlayerState player;
 
 int main() {
 	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
+	
+	sndbank.insts[0] = &duck;
+	sndbank.insts[1] = &kickyou;
 
 	irq_init(NULL);
 	irq_add(II_VBLANK, NULL);
@@ -35,6 +35,13 @@ int main() {
 		(4 << 16) | // mix freq
 		0x900000  //d/a (8-bit setting)
 	);
+	PlayerInit(&player, &sndarea, &sndbank, (u8**) &hello_mid);
+	if (player.status == PLAYER_STATUS_READY) {
+		dputs("MIDI file is valid!");
+		PlayerPlay(&player);
+	} else {
+		dputs("Invalid MIDI file.");
+	}
 
   char str[32];
 	
@@ -45,6 +52,7 @@ int main() {
 		VBlankIntrWait();
 		SoundDriverVSync();
 		SoundDriverMain();
+		PlayerMain(&player);
 		key_poll();
 		
 		if (key_hit(KEY_DIR|KEY_A)) {
