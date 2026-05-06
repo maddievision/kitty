@@ -44,21 +44,32 @@ void SoundMainCGB(SoundArea *snd) {
   for (int i = 0; i < 4; i++) {
     SoundChannel* chn = &snd->cgb[i];
     if (chn->status == VOICE_STATUS_START) {
+      if (chn->volr & 1) {
+        REG_SNDDMGCNT |= (0x100 << i);
+      } else {
+        REG_SNDDMGCNT &= ~(0x100 << i);
+      }
+      
+      if (chn->volr & 2) {
+        REG_SNDDMGCNT |= (0x1000 << i);
+      } else {
+        REG_SNDDMGCNT &= ~(0x1000 << i);
+      }
       switch (i) {
         case CGB_CHANNEL_PULSE_A:
-          REG_SND1CNT = SSQR_ENV_BUILD(10, 0, 7) | SSQR_DUTY1_4;
+          REG_SND1CNT = (chn->voll << 12) | (chn->cgbenv << 8) | (chn->duty << 6);
           REG_SND1FREQ = SFREQ_RESET | chn->freq;
           chn->status = 1;
         break;
         case CGB_CHANNEL_PULSE_B:
-          REG_SND2CNT = SSQR_ENV_BUILD(9, 0, 7) | SSQR_DUTY1_2;
+          REG_SND2CNT = (chn->voll << 12) | (chn->cgbenv << 8) | (chn->duty << 6);
           REG_SND2FREQ = SFREQ_RESET | chn->freq;
           chn->status = 1;
         break;
         default:
           chn->status = VOICE_STATUS_OFF;
       }
-    } else if (chn->status & VOICE_STATUS_RELEASE) {
+    } else if (chn->status == VOICE_STATUS_RELEASE) {
       switch (i) {
         case CGB_CHANNEL_PULSE_A:
           REG_SND1CNT = 0;
@@ -68,14 +79,33 @@ void SoundMainCGB(SoundArea *snd) {
           REG_SND2CNT = 0;
           chn->status = VOICE_STATUS_OFF;
       }
+    } else if (chn->status == 0xC0) {
+      // update vol/pan;
+      
+      // need to consolidate into one write
+      if (chn->volr & 1) {
+        REG_SNDDMGCNT |= (0x100 << i);
+      } else {
+        REG_SNDDMGCNT &= ~(0x100 << i);
+      }
+
+      if (chn->volr & 2) {
+        REG_SNDDMGCNT |= (0x1000 << i);
+      } else {
+        REG_SNDDMGCNT &= ~(0x1000 << i);
+      }
+      
+      chn->status = 1;      
     } else if (chn->status & 1) {
       switch (i) {
         case CGB_CHANNEL_PULSE_A:
           REG_SND1FREQ = chn->freq;
+          REG_SND1CNT = (REG_SND1CNT & ~(u16)(0xC0)) | (chn->duty << 6);
           chn->status = 1;
         break;
         case CGB_CHANNEL_PULSE_B:
           REG_SND2FREQ = chn->freq;
+          REG_SND2CNT = (REG_SND2CNT & ~(u16)(0xC0)) | (chn->duty << 6);
           chn->status = 1;
       }
     }

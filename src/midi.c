@@ -16,15 +16,44 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     SoundArea* snd = p->snd;
     SoundEntry* inst = trk->inst;
     
-    if (trk->chan >= 14) { //cgb override test
-      u8 i = trk->chan - 14;
+    u32 priority = ((u32)(trk->priority) << 8) & (0x40 - trk->id);
+    
+    if (trk->output > 0) {
+      int i = trk->output - 1;
       SoundChannel *chn = &snd->cgb[i];
-      u8 freqnote = (s8)note + trk->pbsemi;
-      u32 freq = MidiKey2FreqCGB(freqnote, trk->pbfp);
+      
+      if (chn->status && priority < chn->priority) {
+        return;
+      }
+
       chn->status = VOICE_STATUS_OFF;
-      chn->freq = freq;
+      chn->voll = ((u16)trk->linvol * (vel << 1)) >> 12;
+      chn->volr = trk->pan < 0x20 ? 1 : trk->pan > 0x60 ? 2 : 3;
+      chn->vel = vel;
+      chn->attack = 0;
+      chn->decay = 0;
+      chn->sustain = 0;
+      chn->release = 0;
+      chn->note = note;
       chn->actnote = note;
+      chn->volecho = 0;
+      chn->echorem = 0;
+      chn->duty = trk->duty;
+      chn->cgbenv = trk->cgbenv;
+
+
+      switch (i) {
+        case 3:
+        break;
+        default:
+          u8 freqnote = (s8)note + trk->pbsemi;
+          chn->freq = MidiKey2FreqCGB(freqnote, trk->pbfp);
+      }
+      chn->wave = 0;
+      chn->userptr = trk;
       chn->status = VOICE_STATUS_START;
+      chn->priority = priority;
+      chn->susoff = 0;
       return;
     }
     
@@ -43,7 +72,6 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     u8 freqnote = (s8)actnote + trk->pbsemi;
     u32 freq = MidiKey2Freq(inst->sample, freqnote, trk->pbfp);
     u8 free = 0xFF;
-    u8 priority = trk->priority;
 
     // find same note
     for (int i = 0; i < snd->maxVoice; i++) {
@@ -117,10 +145,17 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
 }
 
 void NoteOff(SoundArea *snd, TrackState *trk, u8 note) {
-  if (trk->chan >= 14) { //cgb override test
-    u8 i = trk->chan - 14;
+  if (trk->output > 0) {
+    int i = trk->output - 1;
     SoundChannel *chn = &snd->cgb[i];
-    chn->status = VOICE_STATUS_RELEASE;
+    if (chn->userptr == trk) {
+      if (trk->sus == 127) {
+        chn->susoff = 1;
+      } else {
+        chn->status = VOICE_STATUS_RELEASE;
+        chn->userptr = 0;
+      }
+    }
     return;
   }
   for (int i = 0; i < snd->maxVoice; i++) {
@@ -138,6 +173,14 @@ void NoteOff(SoundArea *snd, TrackState *trk, u8 note) {
 }
 
 void TrackSusOff(SoundArea *snd, TrackState *trk) {
+  for (int i = 0; i < 4; i++) {
+    SoundChannel *chn = &snd->cgb[i];
+    if (chn->userptr == trk && chn->susoff == 1) {
+      chn->status = VOICE_STATUS_RELEASE;
+      chn->userptr = 0;
+    }
+  }
+
   for (int i = 0; i < snd->maxVoice; i++) {
     SoundChannel *chn = &snd->vchn[i];
     if (chn->userptr == trk && chn->susoff == 1) {
@@ -150,12 +193,21 @@ void TrackSusOff(SoundArea *snd, TrackState *trk) {
 
 void TrackUpdateVol(SoundArea *snd, TrackState* trk) {
   u16 vol = ((u16)volumelut2[trk->vol] * (u16)(trk->exp << 1)) >> 8;
-  // u16 vol = ((u16)(trk->vol << 1) * (u16)(trk->exp << 1)) >> 8;
-  // TODO: fix panning
+  trk->linvol = ((u16)(trk->vol << 1) * (u16)(trk->exp << 1)) >> 8;
   u16 panl = trk->pan <= 0x40 ? 0xFF : ((0x7F - trk->pan) << 2); //volumelut2[(0x7F - trk->pan) << 1];
   u16 panr = trk->pan >= 0x40 ? 0xFF : (trk->pan << 2);//volumelut2[trk->pan << 1];
   trk->voll = (panl * vol) >> 8;
   trk->volr = (panr * vol) >> 8;
+
+  for (int i = 0; i < 4; i++) {
+    SoundChannel *chn = &snd->cgb[i];
+    if (chn->userptr == trk) {
+      chn->voll = ((u16)trk->linvol * (chn->vel << 1)) >> 12;
+      chn->volr = trk->pan < 0x20 ? 1 : trk->pan > 0x60 ? 2 : 3;
+      chn->status = 0xC0;
+    }
+  }
+  
   for (int i = 0; i < snd->maxVoice; i++) {
     SoundChannel *chn = &snd->vchn[i];
     if (chn->userptr == trk) {
@@ -166,20 +218,35 @@ void TrackUpdateVol(SoundArea *snd, TrackState* trk) {
   }
 }
 
+void TrackUpdateDuty(SoundArea *snd, TrackState* trk) {
+  for (int i = 0; i < 4; i++) {
+    SoundChannel *chn = &snd->cgb[i];
+    if (chn->userptr == trk) {
+      chn->duty = trk->duty;
+    }
+  }
+}
+
 void TrackUpdatePitch(SoundArea *snd, TrackState* trk) {
   trk->pb = trk->wheel >> 6;
   u16 ext = (u16)trk->pb * ((u16)trk->pbr << 1);
   trk->pbsemi = (s8)(ext >> 8) - (s8)(trk->pbr);
   trk->pbfp = ext & 0xFF;
 
-  if (trk->chan >= 14) { //cgb override test
-    u8 i = trk->chan - 14;
-    SoundChannel *chn = &snd->cgb[i];
-    u8 freqnote = (s8)chn->actnote + trk->pbsemi;
-    chn->freq = MidiKey2FreqCGB(freqnote, trk->pbfp);
-    return;
-  }
 
+  for (int i = 0; i < 4; i++) {
+    SoundChannel *chn = &snd->cgb[i];
+    if (chn->userptr == trk) {
+      switch (i) {
+        case 3:
+          break;
+        default:
+          u8 freqnote = (s8)chn->actnote + trk->pbsemi;
+          chn->freq = MidiKey2FreqCGB(freqnote, trk->pbfp);
+      }
+    }
+  }
+  
   for (int i = 0; i < snd->maxVoice; i++) {
     SoundChannel *chn = &snd->vchn[i];
     if (chn->userptr == trk) {
@@ -202,6 +269,7 @@ void ResetTrackParams(TrackState* trk) {
   
   trk->voll = 0xFF;
   trk->volr = 0xFF;
+  trk->linvol = 0xFC;
   trk->pb = 0x80;
   trk->sus = 0;
   trk->priority = 100;
@@ -209,6 +277,10 @@ void ResetTrackParams(TrackState* trk) {
   trk->wheel = 0x2000;
   trk->pbsemi = 0;
   trk->pbfp = 0;
+  
+  trk->duty = 2;
+  trk->cgbenv = 0;
+  trk->output = 0;
 }
 
 void printaddr(VFile *f) {
@@ -573,19 +645,43 @@ void PlayerMain(PlayerState* p) {
               break;
             case 0xB:
               switch (b1) {
-                case 7:
+                case 1: //mod wheel
+                  break;
+                case 2: //duty cycle
+                  u8 duty = b2 >> 5;
+                  if (trk->duty != duty) {
+                    trk->duty = duty;
+                    TrackUpdateDuty(p->snd, trk);
+                  }
+                  break;
+                case 3: //cgb env
+                  // & 0x40 >> 3 (direction)
+                  // >> 3 & 7 (speed)
+                  if (b2 == 0x40) { // no movement
+                    trk->cgbenv = 0;
+                    
+                  } else if (b2 > 0x40) { //upwards
+                    trk->cgbenv = 0x8 | (((0x3F - b2) >> 3) & 7);
+                  } else { //downwards
+                    trk->cgbenv = ((b2 >> 3) + 1) & 7;
+                  }
+                  break;
+                case 4: //sound output
+                  trk->output = b2;
+                  break;
+                case 7: // vol
                   if (trk->vol != b2) {
                     trk->vol = b2;
                     TrackUpdateVol(p->snd, trk);
                   } 
                   break;
-                case 10:
+                case 10: //pan
                   if (trk->pan != b2) {
                     trk->pan = b2;
                     TrackUpdateVol(p->snd, trk);
                   } 
                   break;
-                case 11:
+                case 11: //exp
                   if (trk->exp != b2) {
                     trk->exp = b2;
                     TrackUpdateVol(p->snd, trk);
@@ -595,26 +691,29 @@ void PlayerMain(PlayerState* p) {
                   trk->pbr = b2;
                   TrackUpdatePitch(p->snd, trk);
                   break;
-                case 64:
+                case 33: //sappy priority;
+                  trk->priority = b2;
+                  break;
+                case 64: //sus
                   trk->sus = b2;
                   if (trk->sus == 0) {
                     TrackSusOff(p->snd, trk);
                   }
                   break;
-                case 100:
+                case 100: //rpn lsb
                   trk->rpnlo = b2;
                   break;
-                case 101:
+                case 101: //ron msb
                   trk->rpnhi = b2;
                   break;
-                case 6:
+                case 6: //data msb
                   trk->datahi = b2;
                   if (trk->rpnlo == 0 && trk->rpnhi == 0) {
                     trk->pbr = b2;
                     TrackUpdatePitch(p->snd, trk);
                   }
                   break;
-                case 38:
+                case 38: //data lsb
                   trk->datalo = b2;
                   break;
               }

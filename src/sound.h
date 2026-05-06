@@ -42,11 +42,13 @@ typedef struct {
   WaveData* wave; //24
   u8* waveptr; //28
   void* userptr; //2C
-  u8 priority; //30
+  u8 duty; //30
   u8 vel; //31
   u8 susoff; // 32
   u8 actnote; //33
-  u32 res4[2]; //34
+  u32 priority; //34 [song] [control] [track]
+  u8 cgbenv; //38
+  u8 res4[3]; //39-3B
   u8 res5[3]; //3C
   u8 samp; //3F
 } SoundChannel;

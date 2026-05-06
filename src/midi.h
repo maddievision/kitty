@@ -57,6 +57,11 @@ typedef struct {
   
   u8 id;
   u8 chan;
+  u8 output;
+  u8 duty;
+  
+  u8 linvol;
+  u8 cgbenv;
   u8 res3[2];
 } TrackState;
 

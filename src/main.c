@@ -124,9 +124,6 @@ int main() {
 	}
 
   char str[32];
-	
-	dputs("press UP to play a note.");
-	dputs("");
 
 	while(1) {
 		VBlankIntrWait();
@@ -134,47 +131,13 @@ int main() {
 		SoundDriverMain();
 		SoundMainCGB(&sndarea);
 		PlayerMain(&player);
-		key_poll();
-		
-		if (key_hit(KEY_DIR|KEY_A)) {
-			if (key_hit(KEY_UP)) {
-				u32 freq = MidiKey2Freq(&kickyou, 60, 0);
-				siprintf(str, "gay C5 kickyou @ %08X",(u32)&kickyou);
-				dputs(str);
-				SoundChannel *chn = &sndarea.vchn[0];
-				chn->status = 0;
-				chn->type = 0;
-				chn->volr = 0x80;
-				chn->voll = 0x80;
-				chn->attack = 0xFF;
-				chn->decay = 0xFF;
-				chn->sustain = 0xFF;
-				chn->release = 0xFF;
-				chn->volecho = 0;
-				chn->echorem = 0;
-				chn->freq = freq;
-				chn->wave = &kickyou;
-				chn->status = 0x80;		
-				freq = MidiKey2Freq(&duck, 62, 0);
-				siprintf(str, "gay D5 duck @ %08X",(u32)&duck);
-				dputs(str);
 
-				chn = &sndarea.vchn[1];
-				chn->status = 0;
-				chn->type = 0;
-				chn->volr = 0x80;
-				chn->voll = 0x80;
-				chn->attack = 0xFF;
-				chn->decay = 0xFF;
-				chn->sustain = 0xFF;
-				chn->release = 0xFF;
-				chn->volecho = 0;
-				chn->echorem = 0;
-				chn->freq = freq;
-				chn->wave = &duck;
-				chn->status = 0x80;
-			}
-		}
+	// 	key_poll();
+	// 	
+	// 	if (key_hit(KEY_DIR|KEY_A)) {
+	// 		if (key_hit(KEY_UP)) {
+	// 		}
+	// 	}
 	}
 	return 0;
 }
