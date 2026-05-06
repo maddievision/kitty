@@ -15,8 +15,23 @@ PlayerState player;
 int main() {
 	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
 	
-	sndbank.insts[0] = &duck;
-	sndbank.insts[1] = &kickyou;
+	sndbank.entries[0].sample = &duck;
+	sndbank.entries[0].attack = 0xFF;
+	sndbank.entries[0].decay = 0xD0;
+	sndbank.entries[0].sustain = 0xC0;
+	sndbank.entries[0].release = 0x10;
+
+	sndbank.entries[1].sample = &kickyou;
+	sndbank.entries[1].attack = 0xFF;
+	sndbank.entries[1].decay = 0x00;
+	sndbank.entries[1].sustain = 0xFF;
+	sndbank.entries[1].release = 0xFF;
+
+	sndbank.entries[2].sample = &duck;
+	sndbank.entries[2].attack = 0xFF;
+	sndbank.entries[2].decay = 0xF5;
+	sndbank.entries[2].sustain = 0x10;
+	sndbank.entries[2].release = 0x30;
 
 	irq_init(NULL);
 	irq_add(II_VBLANK, NULL);
