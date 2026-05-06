@@ -56,7 +56,8 @@ typedef struct {
   u8 pbfp;
   
   u8 id;
-  u8 res3[3];
+  u8 chan;
+  u8 res3[2];
 } TrackState;
 
 typedef struct {

@@ -3,6 +3,7 @@
 #include <tonc_bios.h>
 #include "debug.h"
 #include "sound.h"
+#include "cgbsound.h"
 #include "midi.h"
 
 SoundArea sndarea;
@@ -96,18 +97,6 @@ int main() {
 		}
 	}
 
-// 	sndbank.entries[90].sample = &duck;
-// 	sndbank.entries[90].attack = 0xFF;
-// 	sndbank.entries[90].decay = 0xD0;
-// 	sndbank.entries[90].sustain = 0xC0;
-// 	sndbank.entries[90].release = 0x10;
-// 	
-// 	sndbank.entries[127].sample = &kickyou;
-// 	sndbank.entries[127].attack = 0xFF;
-// 	sndbank.entries[127].decay = 0x00;
-// 	sndbank.entries[127].sustain = 0xFF;
-// 	sndbank.entries[127].release = 0xFF;
-
 	irq_init(NULL);
 	irq_add(II_VBLANK, NULL);
 
@@ -125,6 +114,7 @@ int main() {
 		(4 << 16) | // mix freq
 		0x900000  //d/a (8-bit setting)
 	);
+	SoundInitCGB(&sndarea);
 	PlayerInit(&player, &sndarea, &sndbank, &drumbank, (u8**) &hello_mid);
 	if (player.status == PLAYER_STATUS_READY) {
 		dputs("MIDI file is valid!");
@@ -142,6 +132,7 @@ int main() {
 		VBlankIntrWait();
 		SoundDriverVSync();
 		SoundDriverMain();
+		SoundMainCGB(&sndarea);
 		PlayerMain(&player);
 		key_poll();
 		

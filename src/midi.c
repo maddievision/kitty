@@ -1,4 +1,5 @@
 #include "midi.h"
+#include "cgbsound.h"
 
 // sqrt
 const u8 volumelut[128] = {
@@ -10,12 +11,24 @@ const u8 volumelut2[128] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x06, 0x07, 0x08, 0x09, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x18, 0x19, 0x1A, 0x1B, 0x1D, 0x1E, 0x20, 0x21, 0x22, 0x24, 0x25, 0x27, 0x29, 0x2A, 0x2C, 0x2E, 0x2F, 0x31, 0x33, 0x35, 0x37, 0x38, 0x3A, 0x3C, 0x3E, 0x40, 0x42, 0x44, 0x46, 0x49, 0x4B, 0x4D, 0x4F, 0x51, 0x54, 0x56, 0x58, 0x5B, 0x5D, 0x60, 0x62, 0x65, 0x67, 0x6A, 0x6C, 0x6F, 0x72, 0x74, 0x77, 0x7A, 0x7D, 0x80, 0x82, 0x85, 0x88, 0x8B, 0x8E, 0x91, 0x94, 0x97, 0x9A, 0x9E, 0xA1, 0xA4, 0xA7, 0xAB, 0xAE, 0xB1, 0xB5, 0xB8, 0xBB, 0xBF, 0xC2, 0xC6, 0xC9, 0xCD, 0xD1, 0xD4, 0xD8, 0xDC, 0xDF, 0xE3, 0xE7, 0xEB, 0xEF, 0xF3, 0xF7, 0xFB, 0xFF  
 };
 
-void PlayNote(PlayerState *p, TrackState *trk, u8 chan, u8 note, u8 vel) {
+void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     u8 actnote;
     SoundArea* snd = p->snd;
     SoundEntry* inst = trk->inst;
     
-    if (chan == 9) { //drum channel override
+    if (trk->chan >= 14) { //cgb override test
+      u8 i = trk->chan - 14;
+      SoundChannel *chn = &snd->cgb[i];
+      u8 freqnote = (s8)note + trk->pbsemi;
+      u32 freq = MidiKey2FreqCGB(freqnote, trk->pbfp);
+      chn->status = VOICE_STATUS_OFF;
+      chn->freq = freq;
+      chn->actnote = note;
+      chn->status = VOICE_STATUS_START;
+      return;
+    }
+    
+    if (trk->chan == 9) { //drum channel override
       inst = &p->dbnk->entries[note];
       actnote = inst->rootnote;
     } else {        
@@ -45,7 +58,7 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 chan, u8 note, u8 vel) {
     if (free == 0xFF) {
       for (int i = 0; i < snd->maxVoice; i++) {
         SoundChannel *chn = &snd->vchn[i];
-        if (chn->status == 0) {
+        if (chn->status == VOICE_STATUS_OFF) {
           free = i;
           break;
         }
@@ -56,7 +69,7 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 chan, u8 note, u8 vel) {
     if (free == 0xFF) {
       for (int i = 0; i < snd->maxVoice; i++) {
         SoundChannel *chn = &snd->vchn[i];
-        if (chn->userptr == 0 || chn->status & 0x40) {
+        if (chn->userptr == 0 || chn->status & VOICE_STATUS_RELEASE) {
           free = i;
           break;
         }
@@ -79,12 +92,13 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 chan, u8 note, u8 vel) {
       return;
     }
     
-    
+    u16 avel = volumelut2[vel];
+
     SoundChannel *chn = &snd->vchn[free];
-    chn->status = 0;
+    chn->status = VOICE_STATUS_OFF;
     chn->type = 0;
-    chn->volr = ((u16)trk->volr * (u16)vel) >> 10;
-    chn->voll = ((u16)trk->voll * (u16)vel) >> 10;
+    chn->volr = ((u16)trk->volr * avel) >> 10;
+    chn->voll = ((u16)trk->voll * avel) >> 10;
     chn->vel = vel;
     chn->attack = inst->attack;
     chn->decay = inst->decay;
@@ -97,19 +111,25 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 chan, u8 note, u8 vel) {
     chn->freq = freq;
     chn->wave = inst->sample;
     chn->userptr = trk;
-    chn->status = 0x80;
+    chn->status = VOICE_STATUS_START;
     chn->priority = priority;
     chn->susoff = 0;
 }
 
 void NoteOff(SoundArea *snd, TrackState *trk, u8 note) {
+  if (trk->chan >= 14) { //cgb override test
+    u8 i = trk->chan - 14;
+    SoundChannel *chn = &snd->cgb[i];
+    chn->status = VOICE_STATUS_RELEASE;
+    return;
+  }
   for (int i = 0; i < snd->maxVoice; i++) {
     SoundChannel *chn = &snd->vchn[i];
     if (chn->userptr == trk && chn->note == note) {
       if (trk->sus == 127) {
         chn->susoff = 1;
       } else {
-        chn->status = 0x40;
+        chn->status = VOICE_STATUS_RELEASE;
         chn->userptr = 0;
       }
       break;
@@ -121,7 +141,7 @@ void TrackSusOff(SoundArea *snd, TrackState *trk) {
   for (int i = 0; i < snd->maxVoice; i++) {
     SoundChannel *chn = &snd->vchn[i];
     if (chn->userptr == trk && chn->susoff == 1) {
-      chn->status = 0x40;
+      chn->status = VOICE_STATUS_RELEASE;
       chn->userptr = 0;
       break;
     }
@@ -129,18 +149,19 @@ void TrackSusOff(SoundArea *snd, TrackState *trk) {
 }
 
 void TrackUpdateVol(SoundArea *snd, TrackState* trk) {
-  u8 vol = ((u16)volumelut2[trk->vol] * (u16)volumelut2[trk->exp]) >> 8;
-  // u8 vol = ((u16)(trk->vol << 1) * (u16)(trk->exp << 1)) >> 8;
+  u16 vol = ((u16)volumelut2[trk->vol] * (u16)(trk->exp << 1)) >> 8;
+  // u16 vol = ((u16)(trk->vol << 1) * (u16)(trk->exp << 1)) >> 8;
   // TODO: fix panning
-  u8 panl = trk->pan <= 0x40 ? 0xFF : volumelut[(0x7F - trk->pan) >> 1];
-  u8 panr = trk->pan >= 0x40 ? 0xFF : volumelut[trk->pan >> 1];
-  trk->voll = ((u16)panl * (u16)vol) >> 8;
-  trk->volr = ((u16)panr * (u16)vol) >> 8;
+  u16 panl = trk->pan <= 0x40 ? 0xFF : ((0x7F - trk->pan) << 2); //volumelut2[(0x7F - trk->pan) << 1];
+  u16 panr = trk->pan >= 0x40 ? 0xFF : (trk->pan << 2);//volumelut2[trk->pan << 1];
+  trk->voll = (panl * vol) >> 8;
+  trk->volr = (panr * vol) >> 8;
   for (int i = 0; i < snd->maxVoice; i++) {
     SoundChannel *chn = &snd->vchn[i];
     if (chn->userptr == trk) {
-      chn->voll = ((u16)trk->voll * (u16)chn->vel) >> 10;
-      chn->volr = ((u16)trk->volr * (u16)chn->vel) >> 10;
+      u16 avel = volumelut2[chn->vel];
+      chn->voll = ((u16)trk->voll * avel) >> 10;
+      chn->volr = ((u16)trk->volr * avel) >> 10;
     }
   }
 }
@@ -150,6 +171,15 @@ void TrackUpdatePitch(SoundArea *snd, TrackState* trk) {
   u16 ext = (u16)trk->pb * ((u16)trk->pbr << 1);
   trk->pbsemi = (s8)(ext >> 8) - (s8)(trk->pbr);
   trk->pbfp = ext & 0xFF;
+
+  if (trk->chan >= 14) { //cgb override test
+    u8 i = trk->chan - 14;
+    SoundChannel *chn = &snd->cgb[i];
+    u8 freqnote = (s8)chn->actnote + trk->pbsemi;
+    chn->freq = MidiKey2FreqCGB(freqnote, trk->pbfp);
+    return;
+  }
+
   for (int i = 0; i < snd->maxVoice; i++) {
     SoundChannel *chn = &snd->vchn[i];
     if (chn->userptr == trk) {
@@ -508,6 +538,7 @@ void PlayerMain(PlayerState* p) {
             chan = status & 0xF;
             b1 = ReadU8(f);
           }
+          trk->chan = chan;
           trk->run = status;
       
           if (s == 0xC || s == 0xD) {
@@ -534,7 +565,7 @@ void PlayerMain(PlayerState* p) {
               if (b2 == 0) {
                 NoteOff(p->snd, trk, b1);
               } else {                
-                PlayNote(p, trk, chan, b1, volumelut2[b2]);
+                PlayNote(p, trk, b1, b2);
               }
               break;
             case 0x8:

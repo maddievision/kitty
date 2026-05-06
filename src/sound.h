@@ -6,6 +6,10 @@
 #define MAX_VCE 8
 #define PCM_BF 3168
 
+#define VOICE_STATUS_OFF 0
+#define VOICE_STATUS_START 0x80
+#define VOICE_STATUS_RELEASE 0x40
+
 typedef struct {
   u16 type;
   u16 status;
@@ -57,6 +61,7 @@ typedef struct {
   u32 res2[16];
   SoundChannel vchn[MAX_VCE];
   s8 pcmbuf[PCM_BF*2];
+  SoundChannel cgb[4];
 } SoundArea;
 
 #endif
