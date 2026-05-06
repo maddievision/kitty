@@ -9,6 +9,7 @@
 #define SOUND_ENTRY_TYPE_FIXED_FLAG 0x08
 #define SOUND_ENTRY_TYPE_MULTI 0x40
 #define SOUND_ENTRY_TYPE_KIT 0x80
+#define SOUND_ENTRY_TYPE_DISABLED 0xFF
 
 typedef struct {
   u8 type;

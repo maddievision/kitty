@@ -27,6 +27,7 @@ typedef struct {
   u8 note;
   u8 run;
   u8 priority;
+
   SoundEntry *inst;
   u32 wait;
   VFile f;
@@ -34,12 +35,35 @@ typedef struct {
   u32 loopwait;
   u32 res1;
   u32 res2;  
+
+  u8 pan;
+  u8 exp;
+  u8 vol;
+  u8 pbr;
+  
+  u8 datalo;
+  u8 datahi;
+  u8 rpnlo;
+  u8 rpnhi;
+  
+  u8 sus;
+  u8 pb;
+  u8 voll;
+  u8 volr;
+  
+  u16 wheel;
+  s8 pbsemi;
+  u8 pbfp;
+  
+  u8 id;
+  u8 res3[3];
 } TrackState;
 
 typedef struct {
   u8 status;
   u8 priority;
   u16 trackcount;
+
   u32 t;
   u32 ms;
   u32 nextMs;
@@ -50,13 +74,16 @@ typedef struct {
   u32 tempo;
   SoundArea* snd;
   SoundBank* bnk;
+  SoundBank* dbnk;
   VFile f;
+
   TrackState tracks[MAX_TRACKS];
+
   u16 ppqn;
   u16 res1;
 } PlayerState;
 
-void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, u8** data);
+void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8** data);
 void PlayerPlay(PlayerState* state);
 void PlayerMain(PlayerState* state);
 
