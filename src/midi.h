@@ -16,6 +16,8 @@
 #define MAX_TRACKS 32
 #define MAX_INST 128
 
+#define FRAME_MS 16
+
 typedef struct {
   void *ptr;
 } VFile;
@@ -23,18 +25,21 @@ typedef struct {
 typedef struct {
   u8 status;
   u8 note;
+  u8 run;
+  u8 priority;
   SoundEntry *inst;
   u32 wait;
-  u8 run;
   VFile f;
   u8* loopptr;
   u32 loopwait;
+  u32 res1;
+  u32 res2;  
 } TrackState;
 
 typedef struct {
-  u16 trackcount;
   u8 status;
-  u16 ppqn;
+  u8 priority;
+  u16 trackcount;
   u32 t;
   u32 ms;
   u32 nextMs;
@@ -47,6 +52,8 @@ typedef struct {
   SoundBank* bnk;
   VFile f;
   TrackState tracks[MAX_TRACKS];
+  u16 ppqn;
+  u16 res1;
 } PlayerState;
 
 void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, u8** data);

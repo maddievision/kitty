@@ -1,9 +1,42 @@
 #include "midi.h"
 
 
-void PlayNote(SoundArea *snd, SoundEntry *inst, u8 channel, u8 note) {
+void PlayNote(SoundArea *snd, SoundEntry *inst, TrackState *trk, u8 note, u8 priority) {
     u32 freq = MidiKey2Freq(inst->sample, note, 0);
-    SoundChannel *chn = &snd->vchn[channel];
+    u8 free = 0xFF;
+    for (int i = 0; i < snd->maxVoice; i++) {
+      SoundChannel *chn = &snd->vchn[i];
+      if (chn->status == 0) {
+        free = i;
+        break;
+      }
+    }
+    
+    if (free == 0xFF) {
+      for (int i = 0; i < snd->maxVoice; i++) {
+        SoundChannel *chn = &snd->vchn[i];
+        if (chn->status & 0x40) {
+          free = i;
+          break;
+        }
+      }      
+    }
+
+    if (free == 0xFF) {
+      for (int i = 0; i < snd->maxVoice; i++) {
+        SoundChannel *chn = &snd->vchn[i];
+        if (priority >= chn->priority) {
+          free = i;
+          break;
+        }
+      }      
+    }
+    
+    if (free == 0xFF) {
+      return;
+    }
+    
+    SoundChannel *chn = &snd->vchn[free];
     chn->status = 0;
     chn->type = 0;
     chn->volr = 0x40;
@@ -12,17 +45,24 @@ void PlayNote(SoundArea *snd, SoundEntry *inst, u8 channel, u8 note) {
     chn->decay = inst->decay;
     chn->sustain = inst->sustain;
     chn->release = inst->release;
+    chn->note = note;
     chn->volecho = 0;
     chn->echorem = 0;
     chn->freq = freq;
     chn->wave = inst->sample;
+    chn->userptr = trk;
     chn->status = 0x80;
+    chn->priority = priority;
 }
 
-void NoteOff(SoundArea *snd, u8 channel) {
-    SoundChannel *chn = &snd->vchn[channel];
-    chn->status |= 0x40;
-
+void NoteOff(SoundArea *snd, TrackState *trk, u8 note) {
+  for (int i = 0; i < snd->maxVoice; i++) {
+    SoundChannel *chn = &snd->vchn[i];
+    if (chn->userptr == trk && chn->note == note) {
+      chn->status |= 0x40;
+      break;
+    }
+  }
 }
 
 void printaddr(VFile *f) {
@@ -379,9 +419,9 @@ void PlayerMain(PlayerState* p) {
               break;
             case 0x9:
               if (b2 == 0) {
-                NoteOff(p->snd, i);
+                NoteOff(p->snd, trk, b1);
               } else {
-                PlayNote(p->snd, trk->inst, i, b1);
+                PlayNote(p->snd, trk->inst, trk, b1, 100);
               }
           }
         }
@@ -408,7 +448,7 @@ void PlayerMain(PlayerState* p) {
     p->nextMs += p->mspt;
   }
   
-  p->ms += 16;
+  p->ms += FRAME_MS;
 
   
   if (activeCount == 0 && p->loopend <= p->loopstart) {

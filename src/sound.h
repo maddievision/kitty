@@ -36,9 +36,12 @@ typedef struct {
   u32 finepos; //1C
   u32 freq; //20
   WaveData* wave; //24
-  u32* waveptr; //28
-  u32 res3[4]; //2C
-  u8 res4[3]; //3C
+  u8* waveptr; //28
+  void* userptr; //2C
+  u8 priority; //30
+  u8 res3[3]; //31-33
+  u32 res4[2]; //34
+  u8 res5[3]; //3C
   u8 samp; //3F
 } SoundChannel;
 
