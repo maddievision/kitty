@@ -16,7 +16,7 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     SoundArea* snd = p->snd;
     SoundEntry* inst = trk->inst;
     
-    u32 priority = ((u32)(trk->priority) << 8) & (0x40 - trk->id);
+    u32 priority = (((u32)trk->priority) << 8) | (u32)(0x40 - trk->id);
     
     if (trk->output > 0) {
       int i = trk->output - 1;
@@ -68,6 +68,20 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     if (inst->type == SOUND_ENTRY_TYPE_DISABLED) {
       return;
     }
+    
+    if (inst->type == SOUND_ENTRY_TYPE_MULTI) {
+      SoundEntryMulti* m = (SoundEntryMulti*)((void*) inst);
+      SoundBank *grp = m->group;
+      SoundMap *map = m->map;
+      u8 idx = map->entries[note];
+      if (idx == 0xFF) {
+        return;
+      }
+      
+      inst = &grp->entries[idx];      
+      s8 trans = (s8)60 - (s8)inst->rootnote;
+      actnote = note + trans;
+    }
 
     u8 freqnote = (s8)actnote + trk->pbsemi;
     u32 freq = MidiKey2Freq(inst->sample, freqnote, trk->pbfp);
@@ -86,23 +100,23 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     if (free == 0xFF) {
       for (int i = 0; i < snd->maxVoice; i++) {
         SoundChannel *chn = &snd->vchn[i];
-        if (chn->status == VOICE_STATUS_OFF) {
+        if (chn->status == VOICE_STATUS_OFF || chn->userptr == 0) {
           free = i;
           break;
         }
       }
     }
-    
-    // find released notes
-    if (free == 0xFF) {
-      for (int i = 0; i < snd->maxVoice; i++) {
-        SoundChannel *chn = &snd->vchn[i];
-        if (chn->userptr == 0 || chn->status & VOICE_STATUS_RELEASE) {
-          free = i;
-          break;
-        }
-      }      
-    }
+    // 
+    // // find released notes
+    // if (free == 0xFF) {
+    //   for (int i = 0; i < snd->maxVoice; i++) {
+    //     SoundChannel *chn = &snd->vchn[i];
+    //     if (chn->userptr == 0) { //|| chn->status & VOICE_STATUS_RELEASE) {
+    //       free = i;
+    //       break;
+    //     }
+    //   }      
+    // }
 
     // otherwise steal lower priority
     if (free == 0xFF) {
@@ -121,12 +135,15 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     }
     
     u16 avel = volumelut2[vel];
-
+    
     SoundChannel *chn = &snd->vchn[free];
     chn->status = VOICE_STATUS_OFF;
     chn->type = 0;
-    chn->volr = ((u16)trk->volr * avel) >> 10;
-    chn->voll = ((u16)trk->voll * avel) >> 10;
+    chn->amp = inst->amp;
+    u16 amp = chn->amp * 2;
+    avel = (avel * amp) >> 8;
+    chn->volr = ((u16)trk->volr * avel) >> VOL_BITS;
+    chn->voll = ((u16)trk->voll * avel) >> VOL_BITS;
     chn->vel = vel;
     chn->attack = inst->attack;
     chn->decay = inst->decay;
@@ -191,8 +208,10 @@ void TrackSusOff(SoundArea *snd, TrackState *trk) {
   }
 }
 
-void TrackUpdateVol(SoundArea *snd, TrackState* trk) {
+void TrackUpdateVol(PlayerState *p, TrackState* trk) {
+  SoundArea *snd = p->snd;
   u16 vol = ((u16)volumelut2[trk->vol] * (u16)(trk->exp << 1)) >> 8;
+  vol = (vol * (u16)p->mvol) >> 8;
   trk->linvol = ((u16)(trk->vol << 1) * (u16)(trk->exp << 1)) >> 8;
   u16 panl = trk->pan <= 0x40 ? 0xFF : ((0x7F - trk->pan) << 2); //volumelut2[(0x7F - trk->pan) << 1];
   u16 panr = trk->pan >= 0x40 ? 0xFF : (trk->pan << 2);//volumelut2[trk->pan << 1];
@@ -212,8 +231,10 @@ void TrackUpdateVol(SoundArea *snd, TrackState* trk) {
     SoundChannel *chn = &snd->vchn[i];
     if (chn->userptr == trk) {
       u16 avel = volumelut2[chn->vel];
-      chn->voll = ((u16)trk->voll * avel) >> 10;
-      chn->volr = ((u16)trk->volr * avel) >> 10;
+      u16 amp = chn->amp * 2;
+      avel = (avel * amp) >> 8;
+      chn->voll = ((u16)trk->voll * avel) >> VOL_BITS;
+      chn->volr = ((u16)trk->volr * avel) >> VOL_BITS;
     }
   }
 }
@@ -256,7 +277,7 @@ void TrackUpdatePitch(SoundArea *snd, TrackState* trk) {
   }
 }
 
-void ResetTrackParams(TrackState* trk) {
+void ResetTrackParams(PlayerState *p, TrackState* trk) {
   trk->vol = 0x7F;
   trk->pan = 0x40;
   trk->exp = 0x7F;
@@ -272,7 +293,7 @@ void ResetTrackParams(TrackState* trk) {
   trk->linvol = 0xFC;
   trk->pb = 0x80;
   trk->sus = 0;
-  trk->priority = 100;
+  trk->priority = 0;
   
   trk->wheel = 0x2000;
   trk->pbsemi = 0;
@@ -281,6 +302,8 @@ void ResetTrackParams(TrackState* trk) {
   trk->duty = 2;
   trk->cgbenv = 0;
   trk->output = 0;
+  
+  trk->inst = &p->bnk->entries[0];
 }
 
 void printaddr(VFile *f) {
@@ -369,6 +392,7 @@ inline u8 ReadU8(VFile *f) {
 void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8** data) {  
   char str[32];
   p->status = PLAYER_STATUS_INACTIVE;
+  p->mvol = MVOL_DEFAULT;
   p->snd = snd;
   p->bnk = bnk;
   p->dbnk = dbnk;
@@ -415,7 +439,7 @@ void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk,
   // scan tracks and set starting pointers
   for (u8 i = 0; i < trackCount; i++) {
     TrackState* trk = &p->tracks[i];
-    ResetTrackParams(trk);
+    ResetTrackParams(p, trk);
     trk->id = i;
     trk->wait = 0;
     trk->run = 0;
@@ -496,7 +520,9 @@ void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk,
           break;
         }
       } else if (status == 0xF0 || status == 0xF7) {
-        dputs("Sysex unsupported");
+        // dputs("Sysex unsupported");
+        u32 len = ReadVLQ(f);
+        f->ptr += len;
       } else if (status >= 0xF0) {
         siprintf(str, "Unknown status byte: %02X", status);
         dputs(str);
@@ -585,7 +611,8 @@ void PlayerMain(PlayerState* p) {
             f->ptr += len;            
           }
         } else if (status == 0xF0 || status == 0xF7) {
-          dputs("Sysex unsupported");
+          u32 len = ReadVLQ(f);
+          f->ptr += len;
         } else if (status >= 0xF0) {
           siprintf(str, "Unknown status byte: %02X", status);
           dputs(str);
@@ -672,19 +699,19 @@ void PlayerMain(PlayerState* p) {
                 case 7: // vol
                   if (trk->vol != b2) {
                     trk->vol = b2;
-                    TrackUpdateVol(p->snd, trk);
+                    TrackUpdateVol(p, trk);
                   } 
                   break;
                 case 10: //pan
                   if (trk->pan != b2) {
                     trk->pan = b2;
-                    TrackUpdateVol(p->snd, trk);
+                    TrackUpdateVol(p, trk);
                   } 
                   break;
                 case 11: //exp
                   if (trk->exp != b2) {
                     trk->exp = b2;
-                    TrackUpdateVol(p->snd, trk);
+                    TrackUpdateVol(p, trk);
                   } 
                   break;
                 case 20: //sappy bendr
@@ -745,7 +772,9 @@ void PlayerMain(PlayerState* p) {
   
   p->ms += FRAME_MS;
 
-  
+//   siprintf(str,"%d %d %d", p->t, p->ms, p->nextMs);
+//   dstatus(str);
+
   if (activeCount == 0 && p->loopend <= p->loopstart) {
     p->status = PLAYER_STATUS_INACTIVE;
   }

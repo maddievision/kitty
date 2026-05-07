@@ -48,7 +48,8 @@ typedef struct {
   u8 actnote; //33
   u32 priority; //34 [song] [control] [track]
   u8 cgbenv; //38
-  u8 res4[3]; //39-3B
+  u8 amp; //39
+  u8 res4[2]; //3A-3B
   u8 res5[3]; //3C
   u8 samp; //3F
 } SoundChannel;

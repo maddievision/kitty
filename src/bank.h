@@ -14,13 +14,13 @@
 typedef struct {
   u8 type;
   u8 rootnote;
-  u8 cgblen;
+  u8 amp;
   u8 cgbps;  
   WaveData *sample;
   u8 attack;
   u8 decay;
   u8 sustain;
-  u8 release;  
+  u8 release;
 } SoundEntry;
 
 typedef struct {
@@ -28,12 +28,13 @@ typedef struct {
 } SoundBank;
 
 typedef struct {
-  u8 inst[128];
+  u8 entries[128];
 } SoundMap;
 
 typedef struct {
   u8 type;
-  u8 res[3];
+  u8 basenote;
+  u8 res[2];
   SoundBank *group;
   SoundMap *map;
 } SoundEntryMulti;

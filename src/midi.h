@@ -18,6 +18,9 @@
 
 #define FRAME_MS 16
 
+#define MVOL_DEFAULT 0xFF
+#define VOL_BITS 10
+
 typedef struct {
   void *ptr;
 } VFile;
@@ -86,7 +89,8 @@ typedef struct {
   TrackState tracks[MAX_TRACKS];
 
   u16 ppqn;
-  u16 res1;
+  u8 mvol;
+  u8 res;
 } PlayerState;
 
 void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8** data);

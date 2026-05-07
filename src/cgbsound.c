@@ -32,8 +32,8 @@ void SoundInitCGB(SoundArea *snd) {
   // snd1 on left/right ; both full volume
   REG_SNDDMGCNT = SDMG_BUILD_LR(SDMG_SQR1, 3) | SDMG_BUILD_LR(SDMG_SQR2, 3) | SDMG_BUILD_LR(SDMG_WAVE, 3) | SDMG_BUILD_LR(SDMG_NOISE, 3);
   // DMG ratio to 50%
-  REG_SNDDSCNT &= ~SDS_DMG100; 
-  REG_SNDDSCNT |= SDS_DMG50 | SDS_A100 | SDS_B100;
+  // REG_SNDDSCNT &= ~SDS_DMG100; 
+  // REG_SNDDSCNT |= SDS_DMG50 | SDS_A100 | SDS_B100;
   // no sweep
   REG_SND1SWEEP = SSW_OFF;
   // envelope: vol=12, decay, max step time (7) ; 50% duty
