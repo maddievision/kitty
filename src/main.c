@@ -34,9 +34,7 @@ extern WaveData saw06;
 extern void* hello_mid;
 PlayerState player;
 
-int main() {
-	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-	
+void SetupSoundBank() {
 	for (int i = 0; i < 128; i++) {
 		SoundEntry* ent = &sndbank.entries[i];
 		if (i < 6) {			
@@ -47,8 +45,8 @@ int main() {
 			m->map = &pianomap;
 			continue;
 		}
-
-
+	
+	
 		ent->type = SOUND_ENTRY_TYPE_SINGLE;
 		ent->sample = &sqld;
 		ent->rootnote = 60;
@@ -57,7 +55,7 @@ int main() {
 		ent->sustain = 0x20;
 		ent->release = 0x30;
 		ent->amp = 0x80;
-	  if (i >= 29 && i < 32) {
+		if (i >= 29 && i < 32) {
 			ent->sample = &saw06;
 			ent->rootnote = 48;			
 			ent->sustain = 0x40;
@@ -74,6 +72,10 @@ int main() {
 		} else if (i == 81) {
 			ent->rootnote = 60;
 			ent->sample = &poly;			
+			ent->sustain = 0x40;
+		} else if (i == 85) {
+			ent->rootnote = 60;
+			ent->sample = &duck;			
 			ent->sustain = 0x40;
 		} else if (i == 55) {
 			ent->sample = &orch83;
@@ -93,7 +95,7 @@ int main() {
 			ent->rootnote = 60;
 			ent->sample = &duck;			
 			ent->sustain = 0x40;
-
+	
 		} else if (i >= 32 && i < 40) {
 			ent->sample = &boogie;
 			ent->amp = 0xFF;
@@ -146,7 +148,7 @@ int main() {
 	for (int i = 78; i <= 127; i++) {
 		pianomap.entries[i] = 3;
 	}
-
+	
 	for (int i = 0; i < 128; i++) {
 		SoundEntry* ent = &drumbank.entries[i];
 		ent->type = SOUND_ENTRY_TYPE_DISABLED;
@@ -202,6 +204,10 @@ int main() {
 			ent->rootnote = 65;
 		}
 	}
+}
+
+int main() {
+	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
 
 	irq_init(NULL);
 	irq_add(II_VBLANK, NULL);
@@ -211,6 +217,7 @@ int main() {
 	pal_bg_mem[0x11] = CLR_GREEN;
 
 	int octave= 0;
+	SetupSoundBank();
 	SoundDriverInit(&sndarea);
 	SoundDriverMode(
 		(10) | //reverb
@@ -221,13 +228,16 @@ int main() {
 		0x900000  //d/a (8-bit setting)
 	);
 	SoundInitCGB(&sndarea);
-	PlayerInit(&player, &sndarea, &sndbank, &drumbank, (u8**) &hello_mid);
+	PlayerInit(&player, &sndarea, &sndbank, &drumbank);	
+	PlayerOpen(&player, (u8**) &hello_mid);
 	if (player.status == PLAYER_STATUS_READY) {
 		dputs("MIDI file is valid!");
-		PlayerPlay(&player);
 	} else {
 		dputs("Invalid MIDI file.");
 	}
+
+	dputs("hello.mid ready");
+	dputs("Press A to play");
 
   char str[32];
 
@@ -240,12 +250,15 @@ int main() {
 		siprintf(str, "%d", player.t);
 		dstatus(str);
 
-	// 	key_poll();
-	// 	
-	// 	if (key_hit(KEY_DIR|KEY_A)) {
-	// 		if (key_hit(KEY_UP)) {
-	// 		}
-	// 	}
+		key_poll();
+		
+		if (key_hit(KEY_DIR|KEY_B|KEY_A)) {
+			if (key_hit(KEY_A)) {
+				PlayerPlay(&player);				
+			} else if (key_hit(KEY_B)) {
+				PlayerStop(&player);
+			}			
+		}
 	}
 	return 0;
 }

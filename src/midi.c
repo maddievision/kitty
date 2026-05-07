@@ -268,6 +268,9 @@ void TrackUpdateDuty(SoundArea *snd, TrackState* trk) {
 void TrackUpdatePitch(SoundArea *snd, TrackState* trk) {
   trk->pb = trk->wheel >> 6;
   u16 ext = (u16)trk->pb * ((u16)trk->pbr << 1);
+  
+  ext += trk->lfo;
+  
   trk->pbsemi = (s8)(ext >> 8) - (s8)(trk->pbr);
   trk->pbfp = ext & 0xFF;
 
@@ -319,6 +322,14 @@ void ResetTrackParams(PlayerState *p, TrackState* trk) {
   trk->duty = 2;
   trk->cgbenv = 0;
   trk->output = 0;
+  
+  trk->mod = 0;
+  trk->lfospd = 0x20;
+  trk->lfophs = 0x40;
+  trk->lfodep = 0xC0;
+  trk->lfo = 0;
+  trk->lfoamt = 0;
+    
   
   trk->inst = &p->bnk->entries[0];
 }
@@ -636,6 +647,25 @@ void PlayerMain(PlayerState* p) {
     return;
   }
   u32 activeCount = 0;
+  
+  // lfo
+  for (u8 i = 0; i < p->trackcount; i++) {
+    TrackState* trk = &p->tracks[i];
+    if (trk->lfoamt) {
+      trk->lfophs += trk->lfospd;
+      u8 dir = trk->lfophs & 0x80;
+      u16 pct;
+      if (dir) {
+        pct = (0xFF - trk->lfophs) << 1;
+      } else {
+        pct = (trk->lfophs) << 1;
+      }
+      trk->lfo = (s16)((pct * (u16)trk->lfoamt) >> 8) - (trk->lfoamt >> 1);
+      TrackUpdatePitch(p->snd, trk);
+    }
+  }
+  
+  
   while (p->ms >= p->nextMs) {
     p->t++;
     activeCount = 0;
@@ -735,6 +765,18 @@ void PlayerMain(PlayerState* p) {
             case 0xB:
               switch (b1) {
                 case 1: //mod wheel
+                  if (trk->mod == 0) {
+                    trk->lfophs = 0x40;
+                  }
+
+                  trk->mod = b2;
+                  if (b2) {
+                    trk->lfoamt = (((u16)trk->lfodep) * ((u16)trk->mod << 1)) >> 8;
+                  } else {
+                    trk->lfoamt = 0;
+                    trk->lfo = 0;
+                    TrackUpdatePitch(p->snd, trk);
+                  }
                   break;
                 case 2: //duty cycle
                   u8 duty = b2 >> 5;

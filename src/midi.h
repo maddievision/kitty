@@ -36,8 +36,6 @@ typedef struct {
   VFile f;
   u8* loopptr;
   u32 loopwait;
-  u32 res1;
-  u32 res2;  
 
   u8 pan;
   u8 exp;
@@ -65,7 +63,16 @@ typedef struct {
   
   u8 linvol;
   u8 cgbenv;
-  u8 res3[2];
+  u8 mod;
+  u8 lfospd;  
+
+  u8 lfophs;
+  u8 lfodep;  
+  u8 lfoamt;
+  u8 res;
+
+  s16 lfo;  
+  u8 res2[2];
   
   void* startptr;
 
