@@ -66,6 +66,9 @@ typedef struct {
   u8 linvol;
   u8 cgbenv;
   u8 res3[2];
+  
+  void* startptr;
+
 } TrackState;
 
 typedef struct {
@@ -93,8 +96,10 @@ typedef struct {
   u8 res;
 } PlayerState;
 
-void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8** data);
+void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk);
 void PlayerPlay(PlayerState* state);
+void PlayerStop(PlayerState* state);
 void PlayerMain(PlayerState* state);
+void PlayerOpen(PlayerState* state, u8** data);
 
 #endif

@@ -11,6 +11,23 @@ const u8 volumelut2[128] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x02, 0x02, 0x03, 0x03, 0x04, 0x04, 0x05, 0x05, 0x06, 0x06, 0x07, 0x08, 0x09, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x18, 0x19, 0x1A, 0x1B, 0x1D, 0x1E, 0x20, 0x21, 0x22, 0x24, 0x25, 0x27, 0x29, 0x2A, 0x2C, 0x2E, 0x2F, 0x31, 0x33, 0x35, 0x37, 0x38, 0x3A, 0x3C, 0x3E, 0x40, 0x42, 0x44, 0x46, 0x49, 0x4B, 0x4D, 0x4F, 0x51, 0x54, 0x56, 0x58, 0x5B, 0x5D, 0x60, 0x62, 0x65, 0x67, 0x6A, 0x6C, 0x6F, 0x72, 0x74, 0x77, 0x7A, 0x7D, 0x80, 0x82, 0x85, 0x88, 0x8B, 0x8E, 0x91, 0x94, 0x97, 0x9A, 0x9E, 0xA1, 0xA4, 0xA7, 0xAB, 0xAE, 0xB1, 0xB5, 0xB8, 0xBB, 0xBF, 0xC2, 0xC6, 0xC9, 0xCD, 0xD1, 0xD4, 0xD8, 0xDC, 0xDF, 0xE3, 0xE7, 0xEB, 0xEF, 0xF3, 0xF7, 0xFB, 0xFF  
 };
 
+void KillAllNotes(PlayerState *p) {
+  for (int i = 0; i < 4; i++) {
+    SoundChannel *chn = &p->snd->cgb[i];
+    if (chn->status) {
+      chn->status = VOICE_STATUS_RELEASE;
+      chn->userptr = 0;
+    }
+  }
+  for (int i = 0; i < MAX_VCE; i++) {
+    SoundChannel *chn = &p->snd->vchn[i];
+    if (chn->status) {
+      chn->status = VOICE_STATUS_RELEASE;
+      chn->userptr = 0;
+    }
+  }
+}
+
 void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     u8 actnote;
     SoundArea* snd = p->snd;
@@ -389,13 +406,50 @@ inline u8 ReadU8(VFile *f) {
 #define MTHD 0x6468544D
 #define MTRK 0x6B72544D
 
-void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8** data) {  
-  char str[32];
+void PlayerReset(PlayerState* p) {
+  KillAllNotes(p);
   p->status = PLAYER_STATUS_INACTIVE;
   p->mvol = MVOL_DEFAULT;
+  for (int i = 0; i < p->trackcount; i++) {
+    p->tracks[0].status = TRACK_STATUS_INACTIVE;
+  }
+
+  p->t = 0;
+  p->ms = 0;
+  p->nextMs = 0;
+  p->mspt = 500 / p->ppqn;
+}
+
+void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk) {  
   p->snd = snd;
   p->bnk = bnk;
   p->dbnk = dbnk;
+  p->f.ptr = 0;
+  p->trackcount = 0;
+  PlayerReset(p);
+}
+
+void PlayerStop(PlayerState* p) {
+  if (p->status != PLAYER_STATUS_ACTIVE ){
+    return;
+  }
+  PlayerReset(p);
+  p->status = PLAYER_STATUS_READY;
+  for (int i = 0; i < p->trackcount; i++) {
+    TrackState* trk = &p->tracks[i];
+    trk->id = i;
+    trk->wait = 0;
+    trk->run = 0;
+    trk->loopptr = 0;
+    trk->loopwait = 0;
+    trk->status = TRACK_STATUS_INACTIVE;    
+  }
+
+}
+
+void PlayerOpen(PlayerState* p, u8** data) {
+  PlayerReset(p);
+  char str[32];
   p->f.ptr = data;
   VFile *f = &p->f;
   u32 r;
@@ -445,7 +499,7 @@ void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk,
     trk->run = 0;
     trk->loopptr = 0;
     trk->loopwait = 0;
-    trk->status = TRACK_STATUS_ACTIVE;
+    trk->status = TRACK_STATUS_INACTIVE;
     siprintf(str, "Track %d @ %08X", i + 1, f->ptr);
     r = ReadHead(f);
     if (r != MTRK) {
@@ -471,6 +525,7 @@ void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk,
       ms += dt * mspt;
       if (first) {
         trk->f.ptr = f->ptr;
+        trk->startptr = f->ptr;
         trk->wait = dt;
         first = 0;
       }
@@ -549,23 +604,30 @@ void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk,
 //     dputs(str);
 //     siprintf(str, "Events: %d", events);
 //     dputs(str);
-
   }
   
   
 
-  p->status = PLAYER_STATUS_READY;
+  p->status = PLAYER_STATUS_READY;  
 }
 
 void PlayerPlay(PlayerState* p) {
-  if (p->status != PLAYER_STATUS_READY) {
+  if (p->status == PLAYER_STATUS_ACTIVE) {
+    PlayerStop(p);
+  } else if (p->status != PLAYER_STATUS_READY) {
     return;
   }
+
   p->status = PLAYER_STATUS_ACTIVE;
   p->t = 0;
   p->ms = 0;
   p->nextMs = 0;
   p->mspt = 500 / p->ppqn;
+  for (int i = 0; i < p->trackcount; i++) {
+    TrackState *trk = &p->tracks[i];
+    trk->f.ptr = trk->startptr;
+    trk->status = TRACK_STATUS_ACTIVE;    
+  }
 }
 
 void PlayerMain(PlayerState* p) {
