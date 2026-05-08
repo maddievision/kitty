@@ -143,9 +143,7 @@ void SetupSoundBank() {
 				ent->sample = &piano_fs4;
 		}
 	}
-	
-	toncset(pianomap.entries, 0xFFFFFFFF, 128);
-	
+		
 	for (int i = 0; i <= 53; i++) {
 		pianomap.entries[i] = 0;
 	}
@@ -226,7 +224,6 @@ int main() {
 	txt_init_se(0, BG_CBB(0) | BG_SBB(31), 0, CLR_ORANGE, 0);
 	pal_bg_mem[0x11] = CLR_GREEN;
 
-	int octave= 0;
 	SetupSoundBank();
 	SoundDriverInit(&sndarea);
 	SoundDriverMode(
@@ -257,7 +254,7 @@ int main() {
 		SoundDriverMain();
 		SoundMainCGB(&sndarea);
 		PlayerMain(&player);
-		siprintf(str, "%d", player.t);
+		siprintf(str, "%ld", player.t);
 		dstatus(str);
 
 		key_poll();

@@ -327,7 +327,7 @@ void ResetTrackParams(PlayerState *p, TrackState* trk) {
 
 void printaddr(VFile *f) {
   static char str[32];
-  siprintf(str, "Addr: %08X", f->ptr);
+  siprintf(str, "Addr: %p", f->ptr);
   dputs(str);  
 }
 
@@ -338,7 +338,7 @@ void ReadStr(VFile *f, char *str, u32 size) {
   str[size] = '\0';
 }
 
-u32 ReadHead(VFile *f) {
+u32 ReadU32(VFile *f) {
   // printaddr(f);
   // u32 v = *((u32*) f->ptr);
   // can't read 32 outside of 32 boundary
@@ -455,19 +455,19 @@ void PlayerOpen(PlayerState* p, u8** data) {
   p->f.ptr = data;
   VFile *f = &p->f;
   u32 r;
-  r = ReadHead(f);
+  r = ReadU32(f);
   if (r != MTHD) {
     dputs("MThd not found");
     return;
   }
   r = ReadBEU32(f);
   if (r != 6) {
-    siprintf(str, "Got: %d", r);
+    siprintf(str, "Got: %ld", r);
     dputs(str);
     return;
   }
   r = ReadBEU16(f);
-  siprintf(str, "Type %d", r);
+  siprintf(str, "Type %ld", r);
   dputs(str);
   
   if (r != 1) {
@@ -502,11 +502,11 @@ void PlayerOpen(PlayerState* p, u8** data) {
     trk->loopptr = 0;
     trk->loopwait = 0;
     trk->status = TRACK_STATUS_INACTIVE;
-    siprintf(str, "Track %d @ %08X", i + 1, f->ptr);
-    r = ReadHead(f);
+    siprintf(str, "Track %d @ %p", i + 1, f->ptr);
+    r = ReadU32(f);
     if (r != MTRK) {
       dputs("Expected MTrk");
-      siprintf(str, "Got: %04X", r);
+      siprintf(str, "Got: %04lX", r);
       dputs(str);
       return;
     }  
@@ -549,7 +549,7 @@ void PlayerOpen(PlayerState* p, u8** data) {
                 p->loopstartms = ms;
               } else if (c == ']') {
                 p->loopend = ct;
-                siprintf(str, "Found Loop @ %d -> %d", p->loopstart, p->loopend);
+                siprintf(str, "Found Loop @ %ld -> %ld", p->loopstart, p->loopend);
                 dputs(str);
               }
             // } else if (len < 31) {
