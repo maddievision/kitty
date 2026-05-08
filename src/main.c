@@ -31,13 +31,15 @@ extern WaveData dramana;
 extern WaveData poly;
 extern WaveData sqld;
 extern WaveData saw06;
+extern WaveData brass;
+extern WaveData ep2;
 extern void* hello_mid;
 PlayerState player;
 
 void SetupSoundBank() {
 	for (int i = 0; i < 128; i++) {
 		SoundEntry* ent = &sndbank.entries[i];
-		if (i < 6) {			
+		if (i < 4) {			
 			ent->type = SOUND_ENTRY_TYPE_MULTI;
 			SoundEntryMulti* m = (SoundEntryMulti*)((void*) ent);
 			m->basenote = 0;
@@ -59,6 +61,10 @@ void SetupSoundBank() {
 			ent->sample = &saw06;
 			ent->rootnote = 48;			
 			ent->sustain = 0x40;
+		} else if (i == 4 || i == 5) {
+			ent->sample = &ep2;
+			ent->rootnote = 84;
+			ent->sustain = 0x10;
 		} else if (i == 45) {
 			ent->sample = &pizz;
 			ent->rootnote = 60;
@@ -69,7 +75,11 @@ void SetupSoundBank() {
 			ent->rootnote = 60;
 			ent->sample = &string2;
 			ent->sustain = 0x40;
-		} else if (i == 81) {
+		} else if (i == 61) {
+			ent->rootnote = 60;
+			ent->sample = &brass;			
+			ent->sustain = 0x40;
+		} else if (i == 81 || i == 62 || i == 63) {
 			ent->rootnote = 60;
 			ent->sample = &poly;			
 			ent->sustain = 0x40;
