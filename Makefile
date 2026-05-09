@@ -27,7 +27,7 @@ LIBTONC := $(DEVKITPRO)/libtonc
 #---------------------------------------------------------------------------------
 TARGET		:= $(notdir $(CURDIR))
 BUILD		:= build
-SOURCES		:= src src/mid src/wav
+SOURCES		:= src src/mid src/wav vendor/gba-hq-mixer
 INCLUDES	:= include
 DATA		:=
 MUSIC		:=

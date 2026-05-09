@@ -36,6 +36,14 @@ extern WaveData ep2;
 extern void* hello_mid;
 PlayerState player;
 
+extern void* SoundMainRAM;	
+extern void* SoundMainRAM_end;	
+extern void MixerMain(SoundArea*);
+
+void SetupSoundMainRAM() {
+	memcpy32((void*) 0x3005000, (void*) &SoundMainRAM, (u32*)&SoundMainRAM_end - (u32*)&SoundMainRAM);
+}
+
 void SetupSoundBank() {
 	for (int i = 0; i < 128; i++) {
 		SoundEntry* ent = &sndbank.entries[i];
@@ -75,7 +83,7 @@ void SetupSoundBank() {
 			ent->rootnote = 60;
 			ent->sample = &string2;
 			ent->sustain = 0x40;
-		} else if (i == 61) {
+		} else if ((i >= 56 && i <= 61) || (i >= 64 && i <= 68)) {
 			ent->rootnote = 60;
 			ent->sample = &brass;			
 			ent->sustain = 0x40;
@@ -87,6 +95,11 @@ void SetupSoundBank() {
 			ent->rootnote = 60;
 			ent->sample = &duck;			
 			ent->sustain = 0x40;
+		} else if (i >= 69 && i <= 78) {
+			ent->sample = &supersquare;
+			ent->sustain = 0x40;
+			ent->rootnote = 72;
+			ent->amp = 0xC0;
 		} else if (i == 55) {
 			ent->sample = &orch83;
 			ent->rootnote = 48;		
@@ -216,7 +229,7 @@ void SetupSoundBank() {
 
 int main() {
 	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
-
+	SetupSoundMainRAM();
 	irq_init(NULL);
 	irq_add(II_VBLANK, NULL);
 
@@ -231,9 +244,10 @@ int main() {
 		(1 << 7) | // reverb set
 		(MAX_VCE << 8) | // voices
 		(11 << 8) | // master vol
-		(4 << 16) | // mix freq
+		(8 << 16) | // mix freq
 		0x900000  //d/a (8-bit setting)
 	);
+	SoundDriverVSyncOff();
 	SoundInitCGB(&sndarea);
 	PlayerInit(&player, &sndarea, &sndbank, &drumbank);	
 	PlayerOpen(&player, (u8**) &hello_mid);
@@ -247,13 +261,15 @@ int main() {
 	dputs("Press A to play");
 
   char str[32];
+	SoundDriverVSyncOn();
 
 	while(1) {
 		VBlankIntrWait();
 		SoundDriverVSync();
-		SoundDriverMain();
+		//SoundDriverMain();
 		SoundMainCGB(&sndarea);
 		PlayerMain(&player);
+		MixerMain(&sndarea);
 		siprintf(str, "%ld", player.t);
 		dstatus(str);
 
