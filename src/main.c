@@ -5,6 +5,7 @@
 #include "sound.h"
 #include "cgbsound.h"
 #include "midi.h"
+#include "mixer.h"
 
 SoundArea sndarea;
 SoundBank sndbank;
@@ -35,14 +36,6 @@ extern WaveData brass;
 extern WaveData ep2;
 extern void* hello_mid;
 PlayerState player;
-
-extern void* SoundMainRAM;	
-extern void* SoundMainRAM_end;	
-extern void MixerMain(SoundArea*);
-
-void SetupSoundMainRAM() {
-	memcpy32((void*) 0x3005000, (void*) &SoundMainRAM, (u32*)&SoundMainRAM_end - (u32*)&SoundMainRAM);
-}
 
 void SetupSoundBank() {
 	for (int i = 0; i < 128; i++) {
@@ -228,51 +221,52 @@ void SetupSoundBank() {
 }
 
 int main() {
+#ifndef OUTPUT_AUDIO_ONLY
 	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
+#endif
 	SetupSoundMainRAM();
 	irq_init(NULL);
 	irq_add(II_VBLANK, NULL);
 
+#ifndef OUTPUT_AUDIO_ONLY
 	txt_init_std();
 	txt_init_se(0, BG_CBB(0) | BG_SBB(31), 0, CLR_ORANGE, 0);
 	pal_bg_mem[0x11] = CLR_GREEN;
+#endif
 
 	SetupSoundBank();
-	SoundDriverInit(&sndarea);
-	SoundDriverMode(
-		(10) | //reverb
-		(1 << 7) | // reverb set
-		(MAX_VCE << 8) | // voices
-		(11 << 8) | // master vol
-		(8 << 16) | // mix freq
-		0x900000  //d/a (8-bit setting)
-	);
-	SoundDriverVSyncOff();
+	MixerInit(&sndarea, MAX_VCE, 11, 8, 10);
 	SoundInitCGB(&sndarea);
 	PlayerInit(&player, &sndarea, &sndbank, &drumbank);	
 	PlayerOpen(&player, (u8**) &hello_mid);
 	if (player.status == PLAYER_STATUS_READY) {
+#ifndef OUTPUT_AUDIO_ONLY
 		dputs("MIDI file is valid!");
+#endif
 	} else {
+#ifndef OUTPUT_AUDIO_ONLY
 		dputs("Invalid MIDI file.");
+#endif
 	}
 
+#ifdef OUTPUT_AUDIO_ONLY
+	PlayerPlay(&player);
+#else
 	dputs("hello.mid ready");
 	dputs("Press A to play");
-
-  char str[32];
-	SoundDriverVSyncOn();
+	char str[32];
+#endif
+	MixerVSyncOn(&sndarea);
 
 	while(1) {
 		VBlankIntrWait();
-		SoundDriverVSync();
-		//SoundDriverMain();
+		MixerVSync(&sndarea);
 		SoundMainCGB(&sndarea);
 		PlayerMain(&player);
 		MixerMain(&sndarea);
+#ifndef OUTPUT_AUDIO_ONLY
 		siprintf(str, "%ld", player.t);
 		dstatus(str);
-
 		key_poll();
 		
 		if (key_hit(KEY_DIR|KEY_B|KEY_A)) {
@@ -282,6 +276,7 @@ int main() {
 				PlayerStop(&player);
 			}			
 		}
+#endif
 	}
 	return 0;
 }

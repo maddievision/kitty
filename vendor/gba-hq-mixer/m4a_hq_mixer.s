@@ -4,6 +4,8 @@
     /**********************
      * CONFIGURATION AREA *
      **********************/
+     
+    .equ    MIXER_ID, 0x65736F52 @ Rose
 
     .equ    hq_buffer_ptr, 0x3006000   @ <-- set this to an IWRAM address where you want your high quality mix buffer to be
     .equ    POKE_CHN_INIT, 0                        @ <-- set to '1' for pokemon games, '0' for other games
@@ -1062,7 +1064,7 @@ C_downsampler_return:
     STRB    R4, [R0, #VAR_EXT_NOISE_SHAPE_LEFT]
     LSRS    R5, #16
     STRB    R5, [R0, #VAR_EXT_NOISE_SHAPE_RIGHT]
-    LDR     R3, =0x68736D53                     @ this is used to indicate the interrupt handler the rendering was finished properly
+    LDR     R3, =MIXER_ID                     @ this is used to indicate the interrupt handler the rendering was finished properly
     STR     R3, [R0]
     ADD     SP, SP, #0x1C
     POP     {R0-R7}

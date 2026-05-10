@@ -11,7 +11,7 @@ Demos:
 ## Features
 
 - Reads directly from MIDI file
-- Uses ipatix's HQ-Mixer https://github.com/ipatix/gba-hq-mixer to mix up to 11 sample voices
+- Uses ipatix's HQ-Mixer https://github.com/ipatix/gba-hq-mixer to mix up to 12 sample voices
 - Soundbank format similar to the one used in Sappy. Currently supported:
   - Single sample instruments
   - Multi sample instruments with keymap
@@ -38,7 +38,6 @@ Demos:
 - Additional Soundbank instrument types:
   - GBC with ADSR envelopes
   - HQ Mixer synth instruments
-- Remove the final dependency of SoundDriverInit/VSync from GBA BIOS
 - Better tooling for adding soundbanks, samples, and MIDI files
 - Generally clean up code
 - Live MIDI In support (emulator memory patch in + link cable planned)

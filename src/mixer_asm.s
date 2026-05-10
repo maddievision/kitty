@@ -7,7 +7,7 @@
 .thumb_func
 .type MixerMain, %function
 
-.equ Smsh, 0x68736D53
+.equ MixerID, 0x65736F52 @ Rose
 .equ SoundMainRAM, 0x3005000
 .equ PcmBufferSize, 0x630
 
@@ -23,7 +23,7 @@
 .equ ARG_BUFFER_POS_INDEX_HINT, 0x14
 
 MixerMain:
-  ldr r2, l_Smsh
+  ldr r2, l_MixerID
   ldr r3, [r0, SoundArea_ident]
   cmp r2, r3
   beq MixerMain_Prep
@@ -59,7 +59,7 @@ MainMixer_NoOffset:
   bx r3
   
 .align 2, 0
-  l_Smsh: .word Smsh
+  l_MixerID: .word MixerID
   l_SoundMainRAM: .word SoundMainRAM + 1
   l_PcmBufferSize: .word PcmBufferSize
   l_SoundArea_pcmbuf: .word SoundArea_pcmbuf
