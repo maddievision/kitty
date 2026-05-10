@@ -27,17 +27,20 @@ void SoundInitCGB(SoundArea *snd) {
     snd->cgb[i].status = VOICE_STATUS_OFF;
   }
   
-  // // turn sound on
-  // REG_SNDSTAT = SSTAT_ENABLE;
-  // snd1 on left/right ; both full volume
   REG_SNDDMGCNT = SDMG_BUILD_LR(SDMG_SQR1, 3) | SDMG_BUILD_LR(SDMG_SQR2, 3) | SDMG_BUILD_LR(SDMG_WAVE, 3) | SDMG_BUILD_LR(SDMG_NOISE, 3);
-  // DMG ratio to 50%
-  // REG_SNDDSCNT &= ~SDS_DMG100; 
-  // REG_SNDDSCNT |= SDS_DMG50 | SDS_A100 | SDS_B100;
-  // no sweep
   REG_SND1SWEEP = SSW_OFF;
-  // envelope: vol=12, decay, max step time (7) ; 50% duty
-  REG_SND1FREQ = 0;
+  
+  // 766789BD 
+  // DCB88542
+  // 22522224
+  // 56678888
+  REG_SND3SEL = (1 << 7) | (1 << 6);
+  REG_WAVE_RAM0 = 0xBD896776;
+  REG_WAVE_RAM1 = 0x4285B8DC;
+  REG_WAVE_RAM2 = 0x24225222;
+  REG_WAVE_RAM3 = 0x88886756;
+  REG_SND3SEL = (1 << 7);
+//   REG_SND3CNT = (7 << 0xD);
 }
 
 void SoundMainCGB(SoundArea *snd) {
@@ -66,6 +69,12 @@ void SoundMainCGB(SoundArea *snd) {
           REG_SND2FREQ = SFREQ_RESET | chn->freq;
           chn->status = 1;
         break;
+        case CGB_CHANNEL_WAVE:
+        // todo vol
+          REG_SND3CNT = (1 << 0xD);
+          REG_SND3FREQ = SFREQ_RESET | chn->freq;
+          chn->status = 1;
+        break;
         default:
           chn->status = VOICE_STATUS_OFF;
       }
@@ -78,6 +87,11 @@ void SoundMainCGB(SoundArea *snd) {
         case CGB_CHANNEL_PULSE_B:
           REG_SND2CNT = 0;
           chn->status = VOICE_STATUS_OFF;
+          break;
+        case CGB_CHANNEL_WAVE:
+          REG_SND3CNT = 0;
+          chn->status = VOICE_STATUS_OFF;
+          break;        
       }
     } else if (chn->status == 0xC0) {
       // update vol/pan;
@@ -107,6 +121,10 @@ void SoundMainCGB(SoundArea *snd) {
           REG_SND2FREQ = chn->freq;
           REG_SND2CNT = (REG_SND2CNT & ~(u16)(0xC0)) | (chn->duty << 6);
           chn->status = 1;
+        break;
+        case CGB_CHANNEL_WAVE:
+            REG_SND3FREQ = chn->freq;
+            chn->status = 1;
       }
     }
   }

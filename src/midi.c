@@ -49,12 +49,13 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
       chn->duty = trk->duty;
       chn->cgbenv = trk->cgbenv;
 
-
+      u8 freqnote = (s8)note + trk->pbsemi;
       switch (i) {
         case 3:
         break;
+        case 2:
+          freqnote += 12;
         default:
-          u8 freqnote = (s8)note + trk->pbsemi;
           chn->freq = MidiKey2FreqCGB(freqnote, trk->pbfp);
       }
       chn->wave = 0;
@@ -811,7 +812,7 @@ void PlayerMain(PlayerState* p) {
                   break;
                 case 64: //sus
                   trk->sus = b2;
-                  if (trk->sus == 0) {
+                  if (trk->sus < 0) {
                     TrackSusOff(p->snd, trk);
                   }
                   break;

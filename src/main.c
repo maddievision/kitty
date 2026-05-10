@@ -19,6 +19,7 @@ extern WaveData tom;
 extern WaveData orch83;
 extern WaveData power;
 extern WaveData duck;
+extern WaveData drm_clap;
 extern WaveData supersquare;
 extern WaveData boogie;
 extern WaveData piano_fs1;
@@ -28,13 +29,19 @@ extern WaveData piano_fs4;
 extern WaveData string2;
 extern WaveData crash;
 extern WaveData pizz;
+extern WaveData organ;
 extern WaveData dramana;
 extern WaveData poly;
 extern WaveData sqld;
 extern WaveData saw06;
 extern WaveData brass;
 extern WaveData ep2;
+#ifdef EXTERNAL_MIDI
+void* external_mid = (void*)0x8030000;
+#else
 extern void* hello_mid;
+#endif
+
 PlayerState player;
 
 void SetupSoundBank() {
@@ -72,6 +79,11 @@ void SetupSoundBank() {
 			ent->decay = 0x00;
 			ent->sustain = 0xFF;
 			ent->release = 0xFF;
+		} else if (i >= 15 && i <= 23) {
+			ent->rootnote = 60;
+			ent->rootnote = 72;
+			ent->sample = &organ;
+			ent->sustain = 0x40;
 		} else if (i >= 48 && i <= 52) {
 			ent->rootnote = 60;
 			ent->sample = &string2;
@@ -79,6 +91,7 @@ void SetupSoundBank() {
 		} else if ((i >= 56 && i <= 61) || (i >= 64 && i <= 68)) {
 			ent->rootnote = 60;
 			ent->sample = &brass;			
+			ent->amp = 0xC0;
 			ent->sustain = 0x40;
 		} else if (i == 81 || i == 62 || i == 63) {
 			ent->rootnote = 60;
@@ -179,12 +192,28 @@ void SetupSoundBank() {
 		} else if (i == 38 || i == 40) {
 			ent->type = SOUND_ENTRY_TYPE_SINGLE;
 			ent->sample = &power;
+		} else if (i == 37 || i == 39) {
+			ent->type = SOUND_ENTRY_TYPE_SINGLE;
+			ent->sample = &drm_clap;
 		} else if (i == 42 || i == 44) {
 			ent->type = SOUND_ENTRY_TYPE_SINGLE;
 			ent->sample = &hhc;
 		} else if (i == 46) {
 			ent->type = SOUND_ENTRY_TYPE_SINGLE;
 			ent->sample = &hho;
+		} else if (i == 51) {
+			ent->type = SOUND_ENTRY_TYPE_SINGLE;
+			ent->sample = &hho;
+			ent->rootnote = 62;
+		} else if (i == 53) {
+			ent->type = SOUND_ENTRY_TYPE_SINGLE;
+			ent->sample = &hho;
+			ent->amp = 0x40;
+			ent->rootnote = 64;
+		} else if (i == 59) {
+			ent->type = SOUND_ENTRY_TYPE_SINGLE;
+			ent->sample = &hho;
+			ent->rootnote = 63;
 		} else if (i == 41) {
 			ent->type = SOUND_ENTRY_TYPE_SINGLE;
 			ent->sample = &tom;
@@ -216,6 +245,14 @@ void SetupSoundBank() {
 			ent->type = SOUND_ENTRY_TYPE_SINGLE;
 			ent->sample = &crash;
 			ent->rootnote = 65;
+		} else if (i == 55) {
+			ent->type = SOUND_ENTRY_TYPE_SINGLE;
+			ent->sample = &crash;
+			ent->rootnote = 62;
+		} else if (i == 52) {
+			ent->type = SOUND_ENTRY_TYPE_SINGLE;
+			ent->sample = &crash;
+			ent->rootnote = 60;
 		}
 	}
 }
@@ -234,10 +271,14 @@ int main() {
 #endif
 
 	SetupSoundBank();
-	MixerInit(&sndarea, MAX_VCE, 11, 8, 10);
+	MixerInit(&sndarea, MAX_VCE, 11, 9, 10);
 	SoundInitCGB(&sndarea);
 	PlayerInit(&player, &sndarea, &sndbank, &drumbank);	
+#ifdef EXTERNAL_MIDI
+	PlayerOpen(&player, (u8**) external_mid);
+#else
 	PlayerOpen(&player, (u8**) &hello_mid);
+#endif
 	if (player.status == PLAYER_STATUS_READY) {
 #ifndef OUTPUT_AUDIO_ONLY
 		dputs("MIDI file is valid!");
@@ -251,7 +292,11 @@ int main() {
 #ifdef OUTPUT_AUDIO_ONLY
 	PlayerPlay(&player);
 #else
+#ifdef EXTERNAL_MIDI
+	dputs("External MIDI ready");
+#else
 	dputs("hello.mid ready");
+#endif
 	dputs("Press A to play");
 	char str[32];
 #endif
