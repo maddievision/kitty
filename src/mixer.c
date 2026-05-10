@@ -1,4 +1,5 @@
 #include "mixer.h"
+#include <tonc.h>
 
 // "Rose"
 #define MixerID 0x65736F52
@@ -7,6 +8,9 @@
 #define MixerIDOff 0x66664F4D
 
 #define SoundMainRAMDest 0x3005000
+
+extern void* SoundMainRAM;	
+extern void* SoundMainRAM_end;	
 
 const u32 freqs[12] = {
   5734,  7884,  10512,  13379,  15768,  18157,  21024,  26758,  31536,  36314,  40137,  42048
@@ -30,6 +34,7 @@ void SetupSoundMainRAM() {
 
 void MixerInit(SoundArea *snd, u8 voices, u8 mvol, u8 freqMode, u8 reverb) {
   toncset(snd, 0, sizeof(snd));
+  SetupSoundMainRAM();
 
   if (REG_DMA1CNT & DMA_REPEAT) {
       REG_DMA1CNT = DMA_ENABLE | DMA_32 | DMA_SRC_INC | DMA_DST_FIXED | DMA_AT_NOW;

@@ -224,7 +224,6 @@ int main() {
 #ifndef OUTPUT_AUDIO_ONLY
 	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
 #endif
-	SetupSoundMainRAM();
 	irq_init(NULL);
 	irq_add(II_VBLANK, NULL);
 
