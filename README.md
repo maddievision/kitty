@@ -1,8 +1,6 @@
 ## sappy4all (S4A)
 
-MIDI player using built in mixer. Very WIP
-
-Wave files converted using https://github.com/ipatix/wav2agb
+GBA MIDI player driver using [gba-hq-mixer](https://github.com/ipatix/gba-hq-mixer)
 
 Demos:
 - Included MIDI: https://streamable.com/9gmq9a
@@ -16,6 +14,7 @@ Demos:
   - Single sample instruments
   - Multi sample instruments with keymap
   - Drum kit
+- Samples can be converted using [wav2agb](https://github.com/ipatix/wav2agb).
 - Tempo changes. Note that currently files at 24/48 PPQN resolution are most reliable. If PPQN is too high, or too low, player might freeze up or crash for the moment.
 - Loop points using "[" and "]" markers
 - Vibrato/LFO via CC 1 (Mod wheel). Uses triangle wave. Speed/depth not yet configurable. For DirectSound and GBC
