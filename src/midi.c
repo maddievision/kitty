@@ -650,6 +650,8 @@ void PlayerMain(PlayerState* p) {
     }
   }
   
+  // siprintf(str,"T%d C%d %FI%d %TI%d N%d", p->t, p->framecount, FRAME_INTERVAL, p->tickinterval, p->nextcount);
+  // dstatus(str);
   
   while (p->framecount >= p->nextcount) {
     p->t++;
@@ -861,10 +863,8 @@ void PlayerMain(PlayerState* p) {
   
   p->framecount += FRAME_INTERVAL;
 
-//   siprintf(str,"%d %d %d", p->t, p->framecount, p->nextcount);
-//   dstatus(str);
 
-  if (activeCount == 0 && p->loopend <= p->loopstart) {
-    p->status = PLAYER_STATUS_INACTIVE;
-  }
+//   if (activeCount == 0 && p->loopend <= p->loopstart) {
+//     p->status = PLAYER_STATUS_INACTIVE;
+//   }
 }
