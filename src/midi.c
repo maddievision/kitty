@@ -418,9 +418,9 @@ void PlayerReset(PlayerState* p) {
   }
 
   p->t = 0;
-  p->ms = 0;
-  p->nextMs = 0;
-  p->mspt = 500 / p->ppqn;
+  p->framecount = 0;
+  p->nextcount = 0;
+  p->tickinterval = (500000 / p->ppqn) >> COUNTER_SHIFT;
 }
 
 void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk) {  
@@ -503,7 +503,7 @@ void PlayerOpen(PlayerState* p, u8** data) {
     trk->loopptr = 0;
     trk->loopwait = 0;
     trk->status = TRACK_STATUS_INACTIVE;
-    siprintf(str, "Track %d @ %p", i + 1, f->ptr);
+    // siprintf(str, "Track %d @ %p", i + 1, f->ptr);
     r = ReadU32(f);
     if (r != MTRK) {
       dputs("Expected MTrk");
@@ -514,18 +514,18 @@ void PlayerOpen(PlayerState* p, u8** data) {
     
     r = ReadBEU32(f);
 
-    dputs(str);
+    // dputs(str);
     u8 events = 0;
     u8 run = 0;
     u8 first = 1;
     u32 ct = 0;
     u32 ms = 0;
-    u32 mspt = 500 / ppqn;
+    u32 tickinterval = (500000 / ppqn) >> COUNTER_SHIFT;
     while (1) {
       events++;
       u32 dt = ReadVLQ(f);
       ct += dt;
-      ms += dt * mspt;
+      ms += dt * tickinterval;
       if (first) {
         trk->f.ptr = f->ptr;
         trk->startptr = f->ptr;
@@ -547,7 +547,7 @@ void PlayerOpen(PlayerState* p, u8** data) {
               char c = ReadU8(f);
               if (c == '[') {
                 p->loopstart = ct;
-                p->loopstartms = ms;
+                p->loopstartcount = ms;
               } else if (c == ']') {
                 p->loopend = ct;
                 siprintf(str, "Found Loop @ %ld -> %ld", p->loopstart, p->loopend);
@@ -568,7 +568,7 @@ void PlayerOpen(PlayerState* p, u8** data) {
               return;
             }
             u32 uspt = ReadBEU24(f);
-            mspt = uspt / (ppqn * 1000);
+            tickinterval = (uspt / ppqn) >> COUNTER_SHIFT;
             break;
           default:
             f->ptr += len;
@@ -623,9 +623,9 @@ void PlayerPlay(PlayerState* p) {
 
   p->status = PLAYER_STATUS_ACTIVE;
   p->t = 0;
-  p->ms = 0;
-  p->nextMs = 0;
-  p->mspt = 500 / p->ppqn;
+  p->framecount = 0;
+  p->nextcount = 0;
+  p->tickinterval = (500000 / p->ppqn) >> COUNTER_SHIFT;
   for (int i = 0; i < p->trackcount; i++) {
     TrackState *trk = &p->tracks[i];
     trk->f.ptr = trk->startptr;
@@ -651,7 +651,7 @@ void PlayerMain(PlayerState* p) {
   }
   
   
-  while (p->ms >= p->nextMs) {
+  while (p->framecount >= p->nextcount) {
     p->t++;
     activeCount = 0;
     for (u8 i = 0; i < p->trackcount; i++) {
@@ -677,9 +677,9 @@ void PlayerMain(PlayerState* p) {
           u32 len = ReadVLQ(f);
           if (meta == 0x51) {
             u32 uspt = ReadBEU24(f);
-            p->mspt = uspt / (p->ppqn * 1000);
+            p->tickinterval = (uspt / p->ppqn) >> COUNTER_SHIFT;
             p->tempo = 60000000 / uspt;
-          //   siprintf(str, "MSPT: %d", p->mspt);
+          //   siprintf(str, "MSPT: %d", p->tickinterval);
           //   dputs(str);
           } else if (meta == 0x2F) {
             trk->status = TRACK_STATUS_INACTIVE;
@@ -850,18 +850,18 @@ void PlayerMain(PlayerState* p) {
         trk->wait = trk->loopwait;
         trk->status = TRACK_STATUS_ACTIVE;
       }
-      u32 dist = p->ms - p->loopstartms;
+      u32 dist = p->framecount - p->loopstartcount;
       p->t = p->loopstart;
-      p->ms = p->loopstartms;
-      p->nextMs -= dist;
+      p->framecount = p->loopstartcount;
+      p->nextcount -= dist;
     }
 
-    p->nextMs += p->mspt;
+    p->nextcount += p->tickinterval;
   }
   
-  p->ms += FRAME_MS;
+  p->framecount += FRAME_INTERVAL;
 
-//   siprintf(str,"%d %d %d", p->t, p->ms, p->nextMs);
+//   siprintf(str,"%d %d %d", p->t, p->framecount, p->nextcount);
 //   dstatus(str);
 
   if (activeCount == 0 && p->loopend <= p->loopstart) {

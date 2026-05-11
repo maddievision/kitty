@@ -84,7 +84,7 @@ void SetupSoundBank() {
 			ent->rootnote = 72;
 			ent->sample = &organ;
 			ent->sustain = 0x40;
-		} else if (i >= 48 && i <= 52) {
+		} else if ((i == 44) || (i >= 48 && i <= 52)) {
 			ent->rootnote = 60;
 			ent->sample = &string2;
 			ent->sustain = 0x40;

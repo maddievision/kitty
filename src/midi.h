@@ -16,10 +16,11 @@
 #define MAX_TRACKS 32
 #define MAX_INST 128
 
-#define FRAME_MS 16
-
 #define MVOL_DEFAULT 0xFF
 #define VOL_BITS 10
+
+#define COUNTER_SHIFT 3
+#define FRAME_INTERVAL (16666 >> COUNTER_SHIFT)
 
 typedef struct {
   void *ptr;
@@ -84,12 +85,12 @@ typedef struct {
   u16 trackcount;
 
   u32 t;
-  u32 ms;
-  u32 nextMs;
+  u32 framecount;
+  u32 nextcount;
   u32 loopstart;
-  u32 loopstartms;
+  u32 loopstartcount;
   u32 loopend;
-  u32 mspt;
+  u32 tickinterval;
   u32 tempo;
   SoundArea* snd;
   SoundBank* bnk;
