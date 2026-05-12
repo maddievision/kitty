@@ -3,8 +3,8 @@
 GBA MIDI player driver using [gba-hq-mixer](https://github.com/ipatix/gba-hq-mixer)
 
 Demos:
-- Included MIDI: https://streamable.com/9gmq9a
-- Hare Hare Yukai: https://streamable.com/wb69tc
+- Demo song: ([Video](https://streamable.com/yfdqu0)) ([GSF](https://files.maddie.rocks/fonsett/s4a_demo.gsf)) ([GBA](https://files.maddie.rocks/fonsett/s4a_demo.gba))
+- Hare Hare Yukai: ([Video](https://streamable.com/e16lkr)) ([GSF](https://files.maddie.rocks/fonsett/s4a_harehareyukai.gsf)) ([GBA](https://files.maddie.rocks/fonsett/s4a_harehareyukai.gba))
 
 ## Features
 
