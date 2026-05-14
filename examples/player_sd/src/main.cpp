@@ -16,7 +16,7 @@ extern "C" {
 #include "s4a.h"
 }
 
-#define MAX_SIZE 0x10000
+#define MAX_SIZE 0x28000
 #define MAX_ENTRIES 20
 
 SappyState sappy;
