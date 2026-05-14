@@ -460,12 +460,13 @@ void PlayerReset(PlayerState* p) {
   p->tickinterval = (500000 / p->ppqn) >> COUNTER_SHIFT;
 }
 
-void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk) {  
+void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8 livemidi) {  
   p->snd = snd;
   p->bnk = bnk;
   p->dbnk = dbnk;
   p->f.ptr = 0;
   p->trackcount = 0;
+  p->livemidi = livemidi;
   for (int i = 0; i < 16; i++) {
     ResetTrackParams(p, &p->midiintracks[i]);
     TrackState *trk = &p->midiintracks[i];
@@ -914,11 +915,11 @@ void PlayerMain(PlayerState* p) {
     TrackUpdateLFO(p, trk);
   }
   
-#ifdef LIVE_MIDI_INPUT
-  VFile *f = &p->midiinbuf;
-  while (ReadEvent(p, f, &p->midiintracks[0], 1) == 1) {}
-  f->ptr = (u8**)MIDI_IN_BUF;
-#endif
+  if (p->livemidi == 1) {
+    VFile *f = &p->midiinbuf;
+    while (ReadEvent(p, f, &p->midiintracks[0], 1) == 1) {}
+    f->ptr = (u8**)MIDI_IN_BUF;
+  }
   
   if (p->status != PLAYER_STATUS_ACTIVE) {
     return;

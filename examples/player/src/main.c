@@ -1,3 +1,16 @@
+
+/* Only performs audio related tasks. No GFX. Intended for packaging into a .gsf
+   although should perhaps be moved into its own example. */
+// #define OUTPUT_AUDIO_ONLY
+
+/* Instead of loading the demo mid and embedding it, load MIDI from fixed ROM
+   location (0x30000). Intended for inserting a MIDI without needing to build. */
+// #define FIXED_ADDRESS_MIDI
+
+/* Enabled reading MIDI buffer from RAM (0x3004000). Intended for use with
+   scripts/mesen/udpmidi.lua and https://codeberg.org/roses/midi2udp */
+// #define LIVE_MIDI_INPUT
+
 #include <stdio.h>
 #include <tonc.h>
 #include <tonc_bios.h>
@@ -40,7 +53,7 @@ extern WaveData marimba;
 #ifdef FIXED_ADDRESS_MIDI
 void* external_mid = (void*)0x8030000;
 #else
-extern void* hello_mid;
+extern void* demo_mid;
 #endif
 
 void SetupSoundBank() {
@@ -271,6 +284,12 @@ void SetupSoundBank() {
 
 int main() {
 	char str[32];
+	u8 livemidi =
+#ifdef LIVE_MIDI_INPUT
+		1;
+#else
+		0;
+#endif		
 
 #ifndef OUTPUT_AUDIO_ONLY
 	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
@@ -285,11 +304,11 @@ int main() {
 #endif
 
 	SetupSoundBank();
-	s4aInit(&sappy, &sndbank, &drumbank, 12, 11, 9, 10);
+	s4aInit(&sappy, &sndbank, &drumbank, 12, 11, 9, 10, livemidi);
 #ifdef FIXED_ADDRESS_MIDI
 	s4aLoadSong(&sappy, (u8**) external_mid);
 #else
-	s4aLoadSong(&sappy, (u8**) &hello_mid);
+	s4aLoadSong(&sappy, (u8**) &demo_mid);
 #endif
 	if (sappy.player.status == PLAYER_STATUS_READY) {
 #ifndef OUTPUT_AUDIO_ONLY

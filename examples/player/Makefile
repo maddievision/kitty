@@ -44,10 +44,6 @@ CFLAGS	:=	-g -Wall -O2\
 
 CFLAGS	+=	$(INCLUDE)
 
-# CFLAGS	+=	-DOUTPUT_AUDIO_ONLY
-# CFLAGS	+=	-DFIXED_ADDRESS_MIDI
-# CFLAGS	+=	-DLIVE_MIDI_INPUT
-
 CXXFLAGS	:=	$(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH)

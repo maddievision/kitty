@@ -12,7 +12,7 @@ typedef struct {
 } SappyState;
 
 //MAX_VCE, 11, 9, 10
-void s4aInit(SappyState* sappy, SoundBank* bank0, SoundBank* bank127, u8 voices, u8 mvol, u8 freqMode, u8 reverb);
+void s4aInit(SappyState* sappy, SoundBank* bank0, SoundBank* bank127, u8 voices, u8 mvol, u8 freqMode, u8 reverb, u8 livemidi);
 void s4aSetVSync(SappyState* sappy, u8 enabled);
 void s4aVSync(SappyState* sappy);
 void s4aMain(SappyState* sappy);

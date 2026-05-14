@@ -108,12 +108,13 @@ typedef struct {
   u16 ppqn;
   u16 trackmode;
   u8 mvol;
+  u8 livemidi;
   
   VFile midiinbuf;
   TrackState midiintracks[16];
 } PlayerState;
 
-void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk);
+void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8 livemidi);
 void PlayerPlay(PlayerState* state);
 void PlayerStop(PlayerState* state);
 void PlayerMain(PlayerState* state);
