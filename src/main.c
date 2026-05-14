@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <tonc.h>
 #include <tonc_bios.h>
+#include "bank.h"
 #include "debug.h"
 #include "sound.h"
 #include "cgbsound.h"
@@ -10,6 +11,7 @@
 SoundArea sndarea;
 SoundBank sndbank;
 SoundBank drumbank;
+SoundBank drumkit;
 SoundBank pianomulti;
 SoundMap pianomap;
 extern WaveData kickyou;
@@ -36,6 +38,7 @@ extern WaveData sqld;
 extern WaveData saw06;
 extern WaveData brass;
 extern WaveData ep2;
+extern WaveData marimba;
 #ifdef EXTERNAL_MIDI
 void* external_mid = (void*)0x8030000;
 #else
@@ -72,7 +75,8 @@ void SetupSoundBank() {
 		} else if (i == 4 || i == 5) {
 			ent->sample = &ep2;
 			ent->rootnote = 84;
-			ent->sustain = 0x10;
+			ent->sustain = 0x01;
+			ent->release = 0xC0;
 		} else if (i == 45) {
 			ent->sample = &pizz;
 			ent->rootnote = 60;
@@ -88,6 +92,7 @@ void SetupSoundBank() {
 			ent->rootnote = 60;
 			ent->sample = &string2;
 			ent->sustain = 0x40;
+			ent->release = 0xC0;
 		} else if ((i >= 56 && i <= 61) || (i >= 64 && i <= 68)) {
 			ent->rootnote = 60;
 			ent->sample = &brass;			
@@ -109,6 +114,9 @@ void SetupSoundBank() {
 		} else if (i == 55) {
 			ent->sample = &orch83;
 			ent->rootnote = 48;		
+			ent->release = 0xF8;	
+		} else if (i >= 8 && i <= 14) {
+			ent->sample = &marimba;
 			ent->release = 0xF8;	
 		} else if (i >=96 && i <= 103) {
 			ent->rootnote = 72;
@@ -135,15 +143,15 @@ void SetupSoundBank() {
 			ent->release = 0x10;
 		}
 	}
-	
+
 	for (int i = 0; i < 128; i++) {
 		SoundEntry* ent = &pianomulti.entries[i];
 		ent->type = SOUND_ENTRY_TYPE_SINGLE;
 		ent->rootnote = 60;
 		ent->attack = 0xFF;
 		ent->decay = 0xF5;
-		ent->sustain = 0x10;
-		ent->release = 0x30;
+		ent->sustain = 0x01;
+		ent->release = 0xC0;
 		ent->amp = 0x80;
 		switch (i) {
 			case 0:
@@ -162,7 +170,7 @@ void SetupSoundBank() {
 				ent->sample = &piano_fs4;
 		}
 	}
-		
+	
 	for (int i = 0; i <= 53; i++) {
 		pianomap.entries[i] = 0;
 	}
@@ -176,8 +184,16 @@ void SetupSoundBank() {
 		pianomap.entries[i] = 3;
 	}
 	
+		
 	for (int i = 0; i < 128; i++) {
 		SoundEntry* ent = &drumbank.entries[i];
+		ent->type = SOUND_ENTRY_TYPE_KIT;
+		ent->sample = (void*) &drumkit;
+	}
+	
+	
+	for (int i = 0; i < 128; i++) {
+		SoundEntry* ent = &drumkit.entries[i];
 		ent->type = SOUND_ENTRY_TYPE_DISABLED;
 		ent->sample = 0;
 		ent->amp = 0x80;

@@ -22,6 +22,8 @@
 #define COUNTER_SHIFT 3
 #define FRAME_INTERVAL (16666 >> COUNTER_SHIFT)
 
+#define MIDI_IN_BUF 0x3004000
+
 typedef struct {
   void *ptr;
 } VFile;
@@ -72,8 +74,12 @@ typedef struct {
   u8 lfoamt;
   u8 res;
 
-  s16 lfo;  
-  u8 res2[2];
+  s16 lfo;
+  u8 bankmsb;
+  u8 banklsb;
+  
+  u8 program;
+  u8 res2[3];
   
   void* startptr;
 
@@ -100,8 +106,11 @@ typedef struct {
   TrackState tracks[MAX_TRACKS];
 
   u16 ppqn;
+  u16 trackmode;
   u8 mvol;
-  u8 res;
+  
+  VFile midiinbuf;
+  TrackState midiintracks[16];
 } PlayerState;
 
 void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk);

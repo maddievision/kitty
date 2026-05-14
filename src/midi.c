@@ -1,4 +1,5 @@
 #include "midi.h"
+#include "bank.h"
 #include "cgbsound.h"
 #include "shapes.h"
 
@@ -13,6 +14,31 @@ void KillAllNotes(PlayerState *p) {
   for (int i = 0; i < MAX_VCE; i++) {
     SoundChannel *chn = &p->snd->vchn[i];
     if (chn->status) {
+      chn->status = VOICE_STATUS_RELEASE;
+      chn->userptr = 0;
+    }
+  }
+}
+
+void TrackUpdateInst(PlayerState *p, TrackState *trk) {
+  if (trk->bankmsb == 0x7F && trk->banklsb == 0) {
+    trk->inst = &p->dbnk->entries[trk->program];
+  } else {
+    trk->inst = &p->bnk->entries[trk->program];
+  }  
+}
+
+void TrackAllNotesOff(PlayerState *p, TrackState *trk) {
+  for (int i = 0; i < 4; i++) {
+    SoundChannel *chn = &p->snd->cgb[i];
+    if (chn->status && chn->userptr == trk) {
+      chn->status = VOICE_STATUS_RELEASE;
+      chn->userptr = 0;
+    }
+  }
+  for (int i = 0; i < MAX_VCE; i++) {
+    SoundChannel *chn = &p->snd->vchn[i];
+    if (chn->status && chn->userptr == trk) {
       chn->status = VOICE_STATUS_RELEASE;
       chn->userptr = 0;
     }
@@ -66,8 +92,9 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
       return;
     }
     
-    if (trk->chan == 9) { //drum channel override
-      inst = &p->dbnk->entries[note];
+    if (inst->type == SOUND_ENTRY_TYPE_KIT) {
+      SoundBank* kit = (SoundBank*) ((void*)inst->sample);
+      inst = &kit->entries[note];
       actnote = inst->rootnote;
     } else {        
       s8 trans = (s8)60 - (s8)inst->rootnote;
@@ -321,8 +348,11 @@ void ResetTrackParams(PlayerState *p, TrackState* trk) {
   trk->lfodep = 0xC0;
   trk->lfo = 0;
   trk->lfoamt = 0;
-    
   
+  trk->bankmsb = 0;
+  trk->banklsb = 0;
+  trk->program = 0;
+      
   trk->inst = &p->bnk->entries[0];
 }
 
@@ -348,6 +378,13 @@ u32 ReadU32(VFile *f) {
   v |= *((u8*) f->ptr++) << 16;
   v |= *((u8*) f->ptr++) << 24;
   return v;
+}
+
+void WriteU32(VFile *f, u32 val) {
+  *((u8*) f->ptr++) = val & 0xFF;
+  *((u8*) f->ptr++) = (val >> 8) & 0xFF;
+  *((u8*) f->ptr++) = (val >> 16) & 0xFF;
+  *((u8*) f->ptr++) = (val >> 24) & 0xFF;
 }
 
 u32 ReadBEU32(VFile *f) {
@@ -429,6 +466,24 @@ void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk)
   p->dbnk = dbnk;
   p->f.ptr = 0;
   p->trackcount = 0;
+  for (int i = 0; i < 16; i++) {
+    ResetTrackParams(p, &p->midiintracks[i]);
+    TrackState *trk = &p->midiintracks[i];
+    if (i == 9) {
+      trk->id = 0;
+      trk->bankmsb = 0x7F;
+      trk->banklsb = 0;
+      trk->inst = &p->dbnk->entries[0];
+    } else {
+      trk->id = i + 1;
+      trk->bankmsb = 0;
+      trk->banklsb = 0;
+      trk->inst = &p->bnk->entries[0];
+    }
+  }
+  p->midiinbuf.ptr = (u8**)MIDI_IN_BUF;
+  WriteU32(&p->midiinbuf, 0x2FFF); // midi eot
+  p->midiinbuf.ptr = (u8**)MIDI_IN_BUF;
   PlayerReset(p);
 }
 
@@ -633,26 +688,236 @@ void PlayerPlay(PlayerState* p) {
   }
 }
 
-void PlayerMain(PlayerState* p) {
+u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
   char str[32];
-  if (p->status != PLAYER_STATUS_ACTIVE) {
-    return;
+  
+  TrackState *ctrk = trk;
+
+  u8 status = ReadU8(f);
+  if (status == 0xFF) {
+    u8 meta = ReadU8(f);
+    // siprintf(str, "Meta event %02X", meta);
+    // dputs(str);
+    u32 len = ReadVLQ(f);
+    if (meta == 0x51) {
+      u32 uspt = ReadBEU24(f);
+      p->tickinterval = (uspt / p->ppqn) >> COUNTER_SHIFT;
+      p->tempo = 60000000 / uspt;
+    //   siprintf(str, "MSPT: %d", p->tickinterval);
+    //   dputs(str);
+    } else if (meta == 0x2F) {
+      if (trk) {
+        trk->status = TRACK_STATUS_INACTIVE;
+      }
+      return 2;
+    } else {
+      f->ptr += len;            
+    }
+  } else if (status == 0xF0 || status == 0xF7) {
+    while (1) {
+      u8 b = ReadU8(f);
+      if (b == 0xF7) return 1;
+    }
+  } else if (status > 0xF0) {
+    // likely a realtime byte
+    // siprintf(str, "Unknown status byte: %02X", status);
+    // dputs(str);
+    return 1;
+  } else {
+    u8 b1 = 0;
+    u8 b2 = 0;
+    u8 chan = 0;
+    u8 s = 0;
+    if ((status & 0x80) == 0) {
+      if (trk->run == 0) {
+        dputs("Expected running status");
+        p->status = PLAYER_STATUS_INACTIVE;
+        return 0;
+      }
+      b1 = status;
+      status = trk->run;
+      s = status >> 4;
+      chan = status & 0xF;
+    } else {
+      s = status >> 4;
+      chan = status & 0xF;
+      b1 = ReadU8(f);
+    }
+
+    trk->run = status;
+    if (useChannelAsTrack) {
+      ctrk = &p->midiintracks[chan];
+    }
+    ctrk->chan = chan;
+
+  
+    if (s == 0xC || s == 0xD) {
+      //siprintf(str, "%02X %02X", status, b1);
+      //dputs(str);          
+    } else {
+      b2 = ReadU8(f);
+      //siprintf(str, "%02X %02X %02X", status, b1, b2);
+    //  dputs(str);
+    }
+    
+    switch (s) {
+      case 0xC:
+        ctrk->program = b1;
+        TrackUpdateInst(p, ctrk);
+        break;
+      case 0xE:
+        u16 wheel = b1 | (b2 << 7);
+        if (ctrk->wheel != wheel) {
+          ctrk->wheel = wheel;
+          TrackUpdatePitch(p->snd, ctrk);
+        }
+        break;
+      case 0x9:
+        if (b2 == 0) {
+          NoteOff(p->snd, ctrk, b1);
+        } else {                
+          PlayNote(p, ctrk, b1, b2);
+        }
+        break;
+      case 0x8:
+        NoteOff(p->snd, ctrk, b1);
+        break;
+      case 0xB:
+        switch (b1) {
+          case 0: //bank msb
+            ctrk->bankmsb = b2;
+            TrackUpdateInst(p, ctrk);
+          break;
+          case 32:
+            ctrk->banklsb = b2;
+            TrackUpdateInst(p, ctrk);
+          break;
+          case 1: //mod wheel
+            if (ctrk->mod == 0) {
+              ctrk->lfophs = 0;
+            }
+  
+            ctrk->mod = b2;
+            if (b2) {
+              ctrk->lfoamt = (((u16)ctrk->lfodep) * ((u16)ctrk->mod << 1)) >> 8;
+            } else {
+              ctrk->lfoamt = 0;
+              ctrk->lfo = 0;
+              TrackUpdatePitch(p->snd, ctrk);
+            }
+            break;
+          case 2: //duty cycle
+            u8 duty = b2 >> 5;
+            if (ctrk->duty != duty) {
+              ctrk->duty = duty;
+              TrackUpdateDuty(p->snd, ctrk);
+            }
+            break;
+          case 3: //cgb env
+            // & 0x40 >> 3 (direction)
+            // >> 3 & 7 (speed)
+            if (b2 == 0x40) { // no movement
+              ctrk->cgbenv = 0;
+              
+            } else if (b2 > 0x40) { //upwards
+              ctrk->cgbenv = 0x8 | (((0x3F - b2) >> 3) & 7);
+            } else { //downwards
+              ctrk->cgbenv = ((b2 >> 3) + 1) & 7;
+            }
+            break;
+          case 4: //sound output
+            ctrk->output = b2;
+            break;
+          case 7: // vol
+            if (ctrk->vol != b2) {
+              ctrk->vol = b2;
+              TrackUpdateVol(p, ctrk);
+            } 
+            break;
+          case 10: //pan
+            if (ctrk->pan != b2) {
+              ctrk->pan = b2;
+              TrackUpdateVol(p, ctrk);
+            } 
+            break;
+          case 11: //exp
+            if (ctrk->exp != b2) {
+              ctrk->exp = b2;
+              TrackUpdateVol(p, ctrk);
+            } 
+            break;
+          case 20: //sappy bendr
+            ctrk->pbr = b2;
+            TrackUpdatePitch(p->snd, ctrk);
+            break;
+          case 33: //sappy priority;
+            ctrk->priority = b2;
+            break;
+          case 64: //sus
+            ctrk->sus = b2;
+            if (ctrk->sus < 0) {
+              TrackSusOff(p->snd, ctrk);
+            }
+            break;
+          case 100: //rpn lsb
+            ctrk->rpnlo = b2;
+            break;
+          case 101: //ron msb
+            ctrk->rpnhi = b2;
+            break;
+          case 6: //data msb
+            ctrk->datahi = b2;
+            if (ctrk->rpnlo == 0 && ctrk->rpnhi == 0) {
+              ctrk->pbr = b2;
+              TrackUpdatePitch(p->snd, ctrk);
+            }
+            break;
+          case 38: //data lsb
+            ctrk->datalo = b2;
+            break;
+          case 123: // all notes off
+            TrackAllNotesOff(p, ctrk);
+            break;
+        }
+        break;
+    }
   }
+  return 1;
+}
+
+void TrackUpdateLFO(PlayerState *p, TrackState *trk) {
+  if (trk->lfoamt) {
+    trk->lfophs += trk->lfospd;
+    trk->lfo = (s16)(((u16)(tri8lut[trk->lfophs]) * (u16)trk->lfoamt) >> 8) - (trk->lfoamt >> 1);
+    TrackUpdatePitch(p->snd, trk);
+  }
+}
+
+void PlayerMain(PlayerState* p) {
   u32 activeCount = 0;
   
   // lfo
   for (u8 i = 0; i < p->trackcount; i++) {
     TrackState* trk = &p->tracks[i];
-    if (trk->lfoamt) {
-      trk->lfophs += trk->lfospd;
-      trk->lfo = (s16)(((u16)(tri8lut[trk->lfophs]) * (u16)trk->lfoamt) >> 8) - (trk->lfoamt >> 1);
-      TrackUpdatePitch(p->snd, trk);
-    }
+    TrackUpdateLFO(p, trk);
   }
   
-  // siprintf(str,"T%d C%d %FI%d %TI%d N%d", p->t, p->framecount, FRAME_INTERVAL, p->tickinterval, p->nextcount);
-  // dstatus(str);
+  for (u8 i = 0; i < 16; i++) {
+    TrackState *trk = &p->midiintracks[i];
+    TrackUpdateLFO(p, trk);
+  }
   
+#ifdef LIVE_MIDI_INPUT
+  VFile *f = &p->midiinbuf;
+  while (ReadEvent(p, f, &p->midiintracks[0], 1) == 1) {}
+  f->ptr = (u8**)MIDI_IN_BUF;
+#endif
+  
+  if (p->status != PLAYER_STATUS_ACTIVE) {
+    return;
+  }
+
+
   while (p->framecount >= p->nextcount) {
     p->t++;
     activeCount = 0;
@@ -664,6 +929,7 @@ void PlayerMain(PlayerState* p) {
       if (trk->wait > 0) {
         trk->wait--;
       }
+
       VFile* f = &trk->f;
       while (trk->status == TRACK_STATUS_ACTIVE && trk->wait == 0) {
         if (p->loopend > p->loopstart && p->t >= p->loopstart && trk->loopptr == 0) {
@@ -671,172 +937,8 @@ void PlayerMain(PlayerState* p) {
           trk->loopwait = p->t - p->loopstart;
         }
         
-        u8 status = ReadU8(f);
-        if (status == 0xFF) {
-          u8 meta = ReadU8(f);
-          // siprintf(str, "Meta event %02X", meta);
-          // dputs(str);
-          u32 len = ReadVLQ(f);
-          if (meta == 0x51) {
-            u32 uspt = ReadBEU24(f);
-            p->tickinterval = (uspt / p->ppqn) >> COUNTER_SHIFT;
-            p->tempo = 60000000 / uspt;
-          //   siprintf(str, "MSPT: %d", p->tickinterval);
-          //   dputs(str);
-          } else if (meta == 0x2F) {
-            trk->status = TRACK_STATUS_INACTIVE;
-            break;
-          } else {
-            f->ptr += len;            
-          }
-        } else if (status == 0xF0 || status == 0xF7) {
-          u32 len = ReadVLQ(f);
-          f->ptr += len;
-        } else if (status >= 0xF0) {
-          siprintf(str, "Unknown status byte: %02X", status);
-          dputs(str);
+        if (!ReadEvent(p, f, trk, 0)) {
           return;
-        } else {
-          u8 b1 = 0;
-          u8 b2 = 0;
-          u8 chan = 0;
-          u8 s = 0;
-          if ((status & 0x80) == 0) {
-            if (trk->run == 0) {
-              dputs("Expected running status");
-              p->status = PLAYER_STATUS_INACTIVE;
-              return;
-            }
-            b1 = status;
-            status = trk->run;
-            s = status >> 4;
-            chan = status & 0xF;
-          } else {
-            s = status >> 4;
-            chan = status & 0xF;
-            b1 = ReadU8(f);
-          }
-          trk->chan = chan;
-          trk->run = status;
-      
-          if (s == 0xC || s == 0xD) {
-            //siprintf(str, "%02X %02X", status, b1);
-            //dputs(str);          
-          } else {
-            b2 = ReadU8(f);
-            //siprintf(str, "%02X %02X %02X", status, b1, b2);
-          //  dputs(str);
-          }
-          
-          switch (s) {
-            case 0xC:
-              trk->inst = &p->bnk->entries[b1];
-              break;
-            case 0xE:
-              u16 wheel = b1 | (b2 << 7);
-              if (trk->wheel != wheel) {
-                trk->wheel = wheel;
-                TrackUpdatePitch(p->snd, trk);
-              }
-              break;
-            case 0x9:
-              if (b2 == 0) {
-                NoteOff(p->snd, trk, b1);
-              } else {                
-                PlayNote(p, trk, b1, b2);
-              }
-              break;
-            case 0x8:
-              NoteOff(p->snd, trk, b1);
-              break;
-            case 0xB:
-              switch (b1) {
-                case 1: //mod wheel
-                  if (trk->mod == 0) {
-                    trk->lfophs = 0;
-                  }
-
-                  trk->mod = b2;
-                  if (b2) {
-                    trk->lfoamt = (((u16)trk->lfodep) * ((u16)trk->mod << 1)) >> 8;
-                  } else {
-                    trk->lfoamt = 0;
-                    trk->lfo = 0;
-                    TrackUpdatePitch(p->snd, trk);
-                  }
-                  break;
-                case 2: //duty cycle
-                  u8 duty = b2 >> 5;
-                  if (trk->duty != duty) {
-                    trk->duty = duty;
-                    TrackUpdateDuty(p->snd, trk);
-                  }
-                  break;
-                case 3: //cgb env
-                  // & 0x40 >> 3 (direction)
-                  // >> 3 & 7 (speed)
-                  if (b2 == 0x40) { // no movement
-                    trk->cgbenv = 0;
-                    
-                  } else if (b2 > 0x40) { //upwards
-                    trk->cgbenv = 0x8 | (((0x3F - b2) >> 3) & 7);
-                  } else { //downwards
-                    trk->cgbenv = ((b2 >> 3) + 1) & 7;
-                  }
-                  break;
-                case 4: //sound output
-                  trk->output = b2;
-                  break;
-                case 7: // vol
-                  if (trk->vol != b2) {
-                    trk->vol = b2;
-                    TrackUpdateVol(p, trk);
-                  } 
-                  break;
-                case 10: //pan
-                  if (trk->pan != b2) {
-                    trk->pan = b2;
-                    TrackUpdateVol(p, trk);
-                  } 
-                  break;
-                case 11: //exp
-                  if (trk->exp != b2) {
-                    trk->exp = b2;
-                    TrackUpdateVol(p, trk);
-                  } 
-                  break;
-                case 20: //sappy bendr
-                  trk->pbr = b2;
-                  TrackUpdatePitch(p->snd, trk);
-                  break;
-                case 33: //sappy priority;
-                  trk->priority = b2;
-                  break;
-                case 64: //sus
-                  trk->sus = b2;
-                  if (trk->sus < 0) {
-                    TrackSusOff(p->snd, trk);
-                  }
-                  break;
-                case 100: //rpn lsb
-                  trk->rpnlo = b2;
-                  break;
-                case 101: //ron msb
-                  trk->rpnhi = b2;
-                  break;
-                case 6: //data msb
-                  trk->datahi = b2;
-                  if (trk->rpnlo == 0 && trk->rpnhi == 0) {
-                    trk->pbr = b2;
-                    TrackUpdatePitch(p->snd, trk);
-                  }
-                  break;
-                case 38: //data lsb
-                  trk->datalo = b2;
-                  break;
-              }
-              break;
-          }
         }
         
         u32 dt = ReadVLQ(f);
