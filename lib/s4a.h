@@ -16,7 +16,7 @@ void s4aInit(SappyState* sappy, SoundBank* bank0, SoundBank* bank127, u8 voices,
 void s4aSetVSync(SappyState* sappy, u8 enabled);
 void s4aVSync(SappyState* sappy);
 void s4aMain(SappyState* sappy);
-void s4aLoadSong(SappyState* sappy, u8** data);
+void s4aLoadSong(SappyState* sappy, u8** data, char* error);
 void s4aPlaySong(SappyState* sappy);
 void s4aStopSong(SappyState* sappy);
 

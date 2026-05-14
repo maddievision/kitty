@@ -118,6 +118,6 @@ void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* d
 void PlayerPlay(PlayerState* state);
 void PlayerStop(PlayerState* state);
 void PlayerMain(PlayerState* state);
-void PlayerOpen(PlayerState* state, u8** data);
+void PlayerOpen(PlayerState* state, u8** data, char* error);
 
 #endif

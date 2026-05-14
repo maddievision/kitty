@@ -2,6 +2,7 @@
 #include "bank.h"
 #include "cgbsound.h"
 #include "shapes.h"
+#include <string.h>
 
 void KillAllNotes(PlayerState *p) {
   for (int i = 0; i < 4; i++) {
@@ -506,7 +507,7 @@ void PlayerStop(PlayerState* p) {
 
 }
 
-void PlayerOpen(PlayerState* p, u8** data) {
+void PlayerOpen(PlayerState* p, u8** data, char* error) {
   PlayerReset(p);
   char str[32];
   p->f.ptr = data;
@@ -514,36 +515,37 @@ void PlayerOpen(PlayerState* p, u8** data) {
   u32 r;
   r = ReadU32(f);
   if (r != MTHD) {
-    dputs("MThd not found");
+    if (error) strcpy(error, "MThd not found");
     return;
   }
   r = ReadBEU32(f);
   if (r != 6) {
-    siprintf(str, "Got: %ld", r);
-    dputs(str);
+    siprintf(str, "Got MThd length: %ld", r);
+    if (error) strcpy(error, str);
     return;
   }
   r = ReadBEU16(f);
-  siprintf(str, "Type %ld", r);
-  dputs(str);
+  // siprintf(str, "Type %ld", r);
+  // if (error) strcpy(error, str);
   
   if (r != 1) {
-    dputs("Unsupported");
+    if (error) strcpy(error, "Unsupported");
     return;
   }
   
   u16 trackCount = ReadBEU16(f);
-  siprintf(str, "Tracks: %d", trackCount);
-  dputs(str);
+//   siprintf(str, "Tracks: %d", trackCount);
+//   if (error) strcpy(error, str);
 
   if (trackCount > MAX_TRACKS) {
-    dputs("Exceeds 32 max");
+    if (error) strcpy(error, "Exceeds 32 max");
+    return;
   }  
   p->trackcount = trackCount;
   
   u16 ppqn = ReadBEU16(f);
-  siprintf(str, "PPQN: %d", ppqn);
-  dputs(str);
+  // siprintf(str, "PPQN: %d", ppqn);
+  // if (error) strcpy(error, str);
   
   p->ppqn = ppqn;
   p->loopstart = 0;
@@ -562,15 +564,15 @@ void PlayerOpen(PlayerState* p, u8** data) {
     // siprintf(str, "Track %d @ %p", i + 1, f->ptr);
     r = ReadU32(f);
     if (r != MTRK) {
-      dputs("Expected MTrk");
-      siprintf(str, "Got: %04lX", r);
-      dputs(str);
+      if (error) strcpy(error, "Expected MTrk");
+      // siprintf(str, "Got: %04lX", r);
+      // if (error) strcpy(error, str);
       return;
     }  
     
     r = ReadBEU32(f);
 
-    // dputs(str);
+    // if (error) strcpy(error, str);
     u8 events = 0;
     u8 run = 0;
     u8 first = 1;
@@ -606,8 +608,8 @@ void PlayerOpen(PlayerState* p, u8** data) {
                 p->loopstartcount = ms;
               } else if (c == ']') {
                 p->loopend = ct;
-                siprintf(str, "Found Loop @ %ld -> %ld", p->loopstart, p->loopend);
-                dputs(str);
+              //   siprintf(str, "Found Loop @ %ld -> %ld", p->loopstart, p->loopend);
+              //   dputs(str);
               }
             // } else if (len < 31) {
             //   char temp[32];
@@ -620,7 +622,7 @@ void PlayerOpen(PlayerState* p, u8** data) {
             break;
           case 0x51:
             if (len != 3) {
-              dputs("Tempo event must be 3 bytes long!");
+              if (error) strcpy(error, "Tempo event must be 3 bytes long!");
               return;
             }
             u32 uspt = ReadBEU24(f);
@@ -634,17 +636,17 @@ void PlayerOpen(PlayerState* p, u8** data) {
           break;
         }
       } else if (status == 0xF0 || status == 0xF7) {
-        // dputs("Sysex unsupported");
+        // if (error) strcpy("Sysex unsupported");
         u32 len = ReadVLQ(f);
         f->ptr += len;
       } else if (status >= 0xF0) {
         siprintf(str, "Unknown status byte: %02X", status);
-        dputs(str);
+        if (error) strcpy(error, str);
         return;
       } else {
         if ((status & 0x80) == 0) {
           if (run == 0) {
-            dputs("Expected running status");
+            if (error) strcpy(error, "Expected running status");
             return;
           }
           status = run;
@@ -662,9 +664,9 @@ void PlayerOpen(PlayerState* p, u8** data) {
       }
     }
 //     siprintf(str, "Wait: %d", trk->wait);
-//     dputs(str);
+//     if (error) strcpy(error, str);
 //     siprintf(str, "Events: %d", events);
-//     dputs(str);
+//     if (error) strcpy(error, str);
     if (trk->chan == 9) {
       trk->bankmsb = 0x7F;
       trk->banklsb = 0;

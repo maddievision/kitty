@@ -26,9 +26,9 @@ int main() {
 	DemoBankInit();
 	s4aInit(&sappy, &sndbank, &drumbank, 12, 11, 9, 10, livemidi);
 #ifdef FIXED_ADDRESS_MIDI
-	s4aLoadSong(&sappy, (u8**) external_mid);
+	s4aLoadSong(&sappy, (u8**) external_mid, 0);
 #else
-	s4aLoadSong(&sappy, (u8**) &demo_mid);
+	s4aLoadSong(&sappy, (u8**) &demo_mid, 0);
 #endif
 	if (sappy.player.status == PLAYER_STATUS_READY) {
 	} else {

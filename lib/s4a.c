@@ -27,8 +27,8 @@ void s4aMain(SappyState* sappy) {
 }
 
 
-void s4aLoadSong(SappyState* sappy, u8** data) {
-  PlayerOpen(&sappy->player, data);
+void s4aLoadSong(SappyState* sappy, u8** data, char* error) {
+  PlayerOpen(&sappy->player, data, error);
 }
 
 void s4aPlaySong(SappyState* sappy) {
