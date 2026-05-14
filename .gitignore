@@ -3,3 +3,4 @@ build
 scratch
 *.elf
 *.gba
+*.gsf

@@ -1,0 +1,1 @@
+Requires https://github.com/loveemu/rom2gsf

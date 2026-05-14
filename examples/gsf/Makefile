@@ -140,6 +140,9 @@ else
 # main targets
 #---------------------------------------------------------------------------------
 
+$(OUTPUT).gsf	:	$(OUTPUT).gba
+	@rom2gsf $(OUTPUT).gba
+
 $(OUTPUT).gba	:	$(OUTPUT).elf
 
 $(OUTPUT).elf	:	$(OFILES)
