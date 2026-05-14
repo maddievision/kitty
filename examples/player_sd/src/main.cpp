@@ -165,7 +165,7 @@ void listDir(std::vector<FILINFO> items, u32 selected, u32 offset, u32 count) {
 	std::string output = "";
 	for (u32 i = offset; i < items.size(); i++) {
 		auto item = items[i];
-		output += std::string(selected == i ? ">>" : "") +
+		output += std::string(selected == i ? ">> " : "   ") +
 							(item.fattrib & AM_DIR ? "[" : "") + std::string(item.fname) +
 							(item.fattrib & AM_DIR ? "]" : "") + "\n";
 		if (i - offset + 1 >= count)
@@ -182,11 +182,10 @@ std::vector<FILINFO> readDir(std::string path) {
 	if (fr > 0)
 		halt("opendir failed!");
 	FILINFO fno;
-	// std::string ext = ".mid";
+	std::string ext = ".mid";
 	while (f_readdir(&dir, &fno) == FR_OK && fno.fname[0] != 0) {
 		std::string fname = fno.fname;
-		// if (!std::equal(ext.rbegin(), ext.rend(), fname.rbegin()) || fname.rfind("._", 0) == 0) {
-		if (fname.rfind("._", 0) == 0) {
+		if ((!(fno.fattrib & AM_DIR) && !std::equal(ext.rbegin(), ext.rend(), fname.rbegin())) || fname.rfind("._", 0) == 0) {
 			continue;
 		}
 		items.push_back(fno);
