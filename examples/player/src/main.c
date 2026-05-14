@@ -3,12 +3,10 @@
 #include <tonc_bios.h>
 #include "bank.h"
 #include "debug.h"
-#include "sound.h"
-#include "cgbsound.h"
-#include "midi.h"
-#include "mixer.h"
+#include "s4a.h"
 
-SoundArea sndarea;
+SappyState sappy;
+
 SoundBank sndbank;
 SoundBank drumbank;
 SoundBank drumkit;
@@ -39,13 +37,11 @@ extern WaveData saw06;
 extern WaveData brass;
 extern WaveData ep2;
 extern WaveData marimba;
-#ifdef EXTERNAL_MIDI
+#ifdef FIXED_ADDRESS_MIDI
 void* external_mid = (void*)0x8030000;
 #else
 extern void* hello_mid;
 #endif
-
-PlayerState player;
 
 void SetupSoundBank() {
 	for (int i = 0; i < 128; i++) {
@@ -274,6 +270,8 @@ void SetupSoundBank() {
 }
 
 int main() {
+	char str[32];
+
 #ifndef OUTPUT_AUDIO_ONLY
 	REG_DISPCNT = DCNT_MODE0 | DCNT_BG0;
 #endif
@@ -287,15 +285,13 @@ int main() {
 #endif
 
 	SetupSoundBank();
-	MixerInit(&sndarea, MAX_VCE, 11, 9, 10);
-	SoundInitCGB(&sndarea);
-	PlayerInit(&player, &sndarea, &sndbank, &drumbank);	
-#ifdef EXTERNAL_MIDI
-	PlayerOpen(&player, (u8**) external_mid);
+	s4aInit(&sappy, &sndbank, &drumbank, 12, 11, 9, 10);
+#ifdef FIXED_ADDRESS_MIDI
+	s4aLoadSong(&sappy, (u8**) external_mid);
 #else
-	PlayerOpen(&player, (u8**) &hello_mid);
+	s4aLoadSong(&sappy, (u8**) &hello_mid);
 #endif
-	if (player.status == PLAYER_STATUS_READY) {
+	if (sappy.player.status == PLAYER_STATUS_READY) {
 #ifndef OUTPUT_AUDIO_ONLY
 		dputs("MIDI file is valid!");
 #endif
@@ -306,34 +302,36 @@ int main() {
 	}
 
 #ifdef OUTPUT_AUDIO_ONLY
-	PlayerPlay(&player);
+	s4aPlaySong(&sappy);
 #else
-#ifdef EXTERNAL_MIDI
-	dputs("External MIDI ready");
+#ifdef FIXED_ADDRESS_MIDI
+	siprintf(str, "MIDI from fixed address %p ready", external_mid);
+	dputs(str);
 #else
-	dputs("hello.mid ready");
+	dputs("Embedded MIDI ready");
 #endif
 	dputs("Press A to play");
-	char str[32];
+#ifdef LIVE_MIDI_INPUT
+	dputs("Live MIDI enabled");
 #endif
-	MixerVSyncOn(&sndarea);
+#endif
+
+	s4aSetVSync(&sappy, 1);
 
 	while(1) {
 		VBlankIntrWait();
-		MixerVSync(&sndarea);
-		SoundMainCGB(&sndarea);
-		PlayerMain(&player);
-		MixerMain(&sndarea);
+		s4aVSync(&sappy);
+		s4aMain(&sappy);
 #ifndef OUTPUT_AUDIO_ONLY
-		siprintf(str, "%ld", player.t);
+		siprintf(str, "%ld", sappy.player.t);
 		dstatus(str);
 		key_poll();
 		
 		if (key_hit(KEY_DIR|KEY_B|KEY_A)) {
 			if (key_hit(KEY_A)) {
-				PlayerPlay(&player);				
+				s4aPlaySong(&sappy);
 			} else if (key_hit(KEY_B)) {
-				PlayerStop(&player);
+				s4aStopSong(&sappy);
 			}			
 		}
 #endif

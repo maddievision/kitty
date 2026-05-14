@@ -1,6 +1,8 @@
 #ifndef _BANK_H
 #define _BANK_H
 
+#include "sound.h"
+
 #define SOUND_ENTRY_TYPE_SINGLE 0x00
 #define SOUND_ENTRY_TYPE_CGB_PULSE_A 0x01
 #define SOUND_ENTRY_TYPE_CGB_PULSE_B 0x02

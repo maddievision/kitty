@@ -1,4 +1,4 @@
-#include "midi.h"
+#include "player.h"
 #include "bank.h"
 #include "cgbsound.h"
 #include "shapes.h"
@@ -11,7 +11,7 @@ void KillAllNotes(PlayerState *p) {
       chn->userptr = 0;
     }
   }
-  for (int i = 0; i < MAX_VCE; i++) {
+  for (int i = 0; i < p->snd->maxVoice; i++) {
     SoundChannel *chn = &p->snd->vchn[i];
     if (chn->status) {
       chn->status = VOICE_STATUS_RELEASE;
@@ -36,7 +36,7 @@ void TrackAllNotesOff(PlayerState *p, TrackState *trk) {
       chn->userptr = 0;
     }
   }
-  for (int i = 0; i < MAX_VCE; i++) {
+  for (int i = 0; i < p->snd->maxVoice; i++) {
     SoundChannel *chn = &p->snd->vchn[i];
     if (chn->status && chn->userptr == trk) {
       chn->status = VOICE_STATUS_RELEASE;
@@ -651,6 +651,8 @@ void PlayerOpen(PlayerState* p, u8** data) {
           ReadU8(f);
         }
         u8 s = status >> 4;
+        u8 chan = status & 0xF;
+        trk->chan = chan;
         run = status;
     
         if (s != 0xC && s != 0xD) {
@@ -662,6 +664,13 @@ void PlayerOpen(PlayerState* p, u8** data) {
 //     dputs(str);
 //     siprintf(str, "Events: %d", events);
 //     dputs(str);
+    if (trk->chan == 9) {
+      trk->bankmsb = 0x7F;
+      trk->banklsb = 0;
+    } else {
+      trk->bankmsb = 0;
+      trk->banklsb = 0;
+    }
   }
   
   
@@ -689,8 +698,6 @@ void PlayerPlay(PlayerState* p) {
 }
 
 u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
-  char str[32];
-  
   TrackState *ctrk = trk;
 
   u8 status = ReadU8(f);

@@ -3,4 +3,4 @@
     .align  2
 
 hello_mid:
-    .incbin "../src/mid/hello.mid"
+    .incbin "../../shared/mid/hello.mid"

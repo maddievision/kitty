@@ -27,8 +27,8 @@ LIBTONC := $(DEVKITPRO)/libtonc
 #---------------------------------------------------------------------------------
 TARGET		:= $(notdir $(CURDIR))
 BUILD		:= build
-SOURCES		:= src src/mid src/wav vendor/gba-hq-mixer
-INCLUDES	:= include
+SOURCES		:= src ../../lib ../shared/mid ../shared/wav ../../vendor/gba-hq-mixer
+INCLUDES	:= include ../../lib
 DATA		:=
 MUSIC		:=
 GRAPHICS	:= graphics
@@ -45,7 +45,7 @@ CFLAGS	:=	-g -Wall -O2\
 CFLAGS	+=	$(INCLUDE)
 
 # CFLAGS	+=	-DOUTPUT_AUDIO_ONLY
-# CFLAGS	+=	-DEXTERNAL_MIDI
+# CFLAGS	+=	-DFIXED_ADDRESS_MIDI
 # CFLAGS	+=	-DLIVE_MIDI_INPUT
 
 CXXFLAGS	:=	$(CFLAGS) -fno-rtti -fno-exceptions
