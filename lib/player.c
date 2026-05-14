@@ -674,6 +674,7 @@ void PlayerOpen(PlayerState* p, u8** data, char* error) {
       trk->bankmsb = 0;
       trk->banklsb = 0;
     }
+    TrackUpdateInst(p, trk);
   }
   
   
@@ -746,13 +747,12 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
       }
       b1 = status;
       status = trk->run;
-      s = status >> 4;
-      chan = status & 0xF;
     } else {
-      s = status >> 4;
-      chan = status & 0xF;
       b1 = ReadU8(f);
     }
+
+    s = status >> 4;
+    chan = status & 0xF;
 
     trk->run = status;
     if (useChannelAsTrack) {
