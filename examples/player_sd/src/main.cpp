@@ -7,6 +7,7 @@
 #include <tonc.h>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 extern "C" {
 #define FLASHCARTIO_DISABLE_DMA 1
@@ -52,31 +53,37 @@ int main() {
 	init();
 	DemoBankInit();
 
-	log("Detected flashcart: " + names[active_flashcart] +
-			"\n\nPress A and open a MIDI file!");
-	waitFor(KEY_A);
-
 	// (2) Use FatFs functions
 	FATFS fatfs;
 	FRESULT fr = f_mount(&fatfs, "", 1);
 	if (fr > 0)
 		halt("mount failed!");
 		
-	log("whee");
-	
 	std::string path = "midi";
 	u32 selected = 0;
 	std::vector<FILINFO> files = readDir(path);
 	listDir(files, selected);
 	
 	while (true) {
-		u16 keys = waitFor(KEY_DOWN | KEY_UP | KEY_A | KEY_B);
+		u16 keys = waitFor(KEY_DIR | KEY_A | KEY_B);
 		if (keys & KEY_DOWN) {
 			// Cursor down
 			selected = (selected + 1) % files.size();
 		} else if (keys & KEY_UP) {
 			// Cursor up
 			selected = selected == 0 ? files.size() - 1 : selected - 1;
+		} else if (keys & KEY_LEFT) {
+			if (selected < 10) {
+				selected = 0;
+			} else {
+				selected -= 10;
+			}
+		} else if (keys & KEY_RIGHT) {
+			if ((selected + 10) >= files.size() - 1) {
+				selected = files.size() - 1;
+			} else {
+				selected += 10;
+			}
 		} else if (keys & KEY_A) {
 			// Read file/directory
 			auto selectedItem = files[selected];
@@ -174,6 +181,18 @@ void listDir(std::vector<FILINFO> items, u32 selected, u32 offset, u32 count) {
 	log(output);
 }
 
+bool nameCompare(const FILINFO& a, const FILINFO& b) {
+		std::string sa = a.fname;
+		std::string sb = b.fname;
+		return std::lexicographical_compare(
+				sa.begin(), sa.end(),
+				sb.begin(), sb.end(),
+				[](char a, char b) {
+						return std::tolower(a) < std::tolower(b);
+				}
+		);
+}
+
 std::vector<FILINFO> readDir(std::string path) {
 	auto items = std::vector<FILINFO>{};
 
@@ -190,6 +209,9 @@ std::vector<FILINFO> readDir(std::string path) {
 		}
 		items.push_back(fno);
 	}
+	
+	std::sort(items.begin(), items.end(), nameCompare);
+	
 	fr = f_closedir(&dir);
 	if (fr > 0)
 		halt("closedir failed!");
