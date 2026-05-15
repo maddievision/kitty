@@ -26,7 +26,6 @@ void s4aMain(SappyState* sappy) {
   MixerMain(&sappy->snd);
 }
 
-
 void s4aLoadSong(SappyState* sappy, u8** data, char* error) {
   PlayerOpen(&sappy->player, data, error);
 }
@@ -37,4 +36,5 @@ void s4aPlaySong(SappyState* sappy) {
 
 void s4aStopSong(SappyState* sappy) {
   PlayerStop(&sappy->player);
+  SoundMainCGB(&sappy->snd); // force CGB update ahead of next frame
 }
