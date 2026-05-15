@@ -461,6 +461,12 @@ void PlayerReset(PlayerState* p) {
   p->tickinterval = (500000 / p->ppqn) >> COUNTER_SHIFT;
 }
 
+void ResetLiveMidiBuffer(PlayerState *p) {
+  p->midiinbuf.ptr = (u8**)MIDI_IN_BUF;
+  WriteU32(&p->midiinbuf, 0x2FFF); // midi eot
+  p->midiinbuf.ptr = (u8**)MIDI_IN_BUF;
+}
+
 void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8 livemidi) {  
   p->snd = snd;
   p->bnk = bnk;
@@ -483,9 +489,7 @@ void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk,
       trk->inst = &p->bnk->entries[0];
     }
   }
-  p->midiinbuf.ptr = (u8**)MIDI_IN_BUF;
-  WriteU32(&p->midiinbuf, 0x2FFF); // midi eot
-  p->midiinbuf.ptr = (u8**)MIDI_IN_BUF;
+  ResetLiveMidiBuffer(p);
   PlayerReset(p);
 }
 
@@ -493,6 +497,7 @@ void PlayerStop(PlayerState* p) {
   if (p->status != PLAYER_STATUS_ACTIVE ){
     return;
   }
+  KillAllNotes(p);
   PlayerReset(p);
   p->status = PLAYER_STATUS_READY;
   for (int i = 0; i < p->trackcount; i++) {
@@ -509,7 +514,6 @@ void PlayerStop(PlayerState* p) {
 
 void PlayerOpen(PlayerState* p, u8** data, char* error) {
   PlayerReset(p);
-  char str[32];
   p->f.ptr = data;
   VFile *f = &p->f;
   u32 r;
@@ -520,18 +524,22 @@ void PlayerOpen(PlayerState* p, u8** data, char* error) {
   }
   r = ReadBEU32(f);
   if (r != 6) {
-    siprintf(str, "Got MThd length: %ld", r);
-    if (error) strcpy(error, str);
+    if (error) {
+      siprintf(error, "Got MThd length: %ld", r);
+    }
     return;
   }
   r = ReadBEU16(f);
   // siprintf(str, "Type %ld", r);
   // if (error) strcpy(error, str);
   
-  if (r != 1) {
-    if (error) strcpy(error, "Unsupported");
+  if (r > 1) {
+    if (error) {
+      siprintf(error, "Type %ld unsupported", r);      
+    }
     return;
   }
+  p->smftype = r;
   
   u16 trackCount = ReadBEU16(f);
 //   siprintf(str, "Tracks: %d", trackCount);
@@ -640,8 +648,9 @@ void PlayerOpen(PlayerState* p, u8** data, char* error) {
         u32 len = ReadVLQ(f);
         f->ptr += len;
       } else if (status >= 0xF0) {
-        siprintf(str, "Unknown status byte: %02X", status);
-        if (error) strcpy(error, str);
+        if (error) {
+          siprintf(error, "Unknown status byte: %02X", status);
+        }
         return;
       } else {
         if ((status & 0x80) == 0) {
@@ -761,13 +770,8 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
     ctrk->chan = chan;
 
   
-    if (s == 0xC || s == 0xD) {
-      //siprintf(str, "%02X %02X", status, b1);
-      //dputs(str);          
-    } else {
+    if (s != 0xC && s != 0xD) {
       b2 = ReadU8(f);
-      //siprintf(str, "%02X %02X %02X", status, b1, b2);
-    //  dputs(str);
     }
     
     switch (s) {
@@ -794,19 +798,47 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
         break;
       case 0xB:
         switch (b1) {
+
+          // bank select
           case 0: //bank msb
-            ctrk->bankmsb = b2;
-            TrackUpdateInst(p, ctrk);
-          break;
+            if (chan != 9) { // disallow this for now
+              ctrk->bankmsb = b2;
+            }
+            //  TrackUpdateInst(p, ctrk);
+            // according to spec, inst should only be updated on prog change
+            break;
           case 32:
             ctrk->banklsb = b2;
-            TrackUpdateInst(p, ctrk);
-          break;
+            //   TrackUpdateInst(p, ctrk);
+            break;
+
+          // rpn
+          case 100: //rpn lsb
+            ctrk->rpnlo = b2;
+            break;
+          case 101: //ron msb
+            ctrk->rpnhi = b2;
+            break;
+          case 6: //data msb
+            ctrk->datahi = b2;
+            if (ctrk->rpnlo == 0 && ctrk->rpnhi == 0) {
+              ctrk->pbr = b2;
+              TrackUpdatePitch(p->snd, ctrk);
+            }
+            break;
+          case 38: //data lsb
+            ctrk->datalo = b2;
+            break;
+          case 20: //mp shorthand for bend range
+            ctrk->pbr = b2;
+            TrackUpdatePitch(p->snd, ctrk);
+            break;
+
+          // lfo
           case 1: //mod wheel
             if (ctrk->mod == 0) {
               ctrk->lfophs = 0;
             }
-  
             ctrk->mod = b2;
             if (b2) {
               ctrk->lfoamt = (((u16)ctrk->lfodep) * ((u16)ctrk->mod << 1)) >> 8;
@@ -816,6 +848,21 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
               TrackUpdatePitch(p->snd, ctrk);
             }
             break;
+          case 21: //lfo speed
+              break;
+          case 22: //lfo type
+            break;
+          case 24: //fine tuning
+            break;
+          case 26: //lfo delay
+            break;
+
+          // sound output override
+          case 4: //sound output
+          ctrk->output = b2;
+          break;
+
+          // cgb
           case 2: //duty cycle
             u8 duty = b2 >> 5;
             if (ctrk->duty != duty) {
@@ -835,9 +882,8 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
               ctrk->cgbenv = ((b2 >> 3) + 1) & 7;
             }
             break;
-          case 4: //sound output
-            ctrk->output = b2;
-            break;
+            
+          // mixing
           case 7: // vol
             if (ctrk->vol != b2) {
               ctrk->vol = b2;
@@ -856,35 +902,44 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
               TrackUpdateVol(p, ctrk);
             } 
             break;
-          case 20: //sappy bendr
-            ctrk->pbr = b2;
-            TrackUpdatePitch(p->snd, ctrk);
+          case 91: //reverb
+            p->snd->reverb = b2;
+            break;            
+
+          // pedals
+          case 64: //sus
+            ctrk->sus = b2;
+            if (ctrk->sus < 127) {
+              TrackSusOff(p->snd, ctrk);
+            }
+            break;
+
+          // memory
+          case 13: //memory op
+            break;
+          case 14: //memory address
+            break;
+          case 15: //destination label
+            break;
+          case 12: case 16: //perform memory operation
+            break;
+          case 17: //label
+            break;
+
+          // macros
+          case 30: //mp param
+            break;
+          case 31: //mp value
+            // 8 - volume
+            // 9 - length
+            // 100 - loop start
+            // 101 - loop end
             break;
           case 33: //sappy priority;
             ctrk->priority = b2;
             break;
-          case 64: //sus
-            ctrk->sus = b2;
-            if (ctrk->sus < 0) {
-              TrackSusOff(p->snd, ctrk);
-            }
-            break;
-          case 100: //rpn lsb
-            ctrk->rpnlo = b2;
-            break;
-          case 101: //ron msb
-            ctrk->rpnhi = b2;
-            break;
-          case 6: //data msb
-            ctrk->datahi = b2;
-            if (ctrk->rpnlo == 0 && ctrk->rpnhi == 0) {
-              ctrk->pbr = b2;
-              TrackUpdatePitch(p->snd, ctrk);
-            }
-            break;
-          case 38: //data lsb
-            ctrk->datalo = b2;
-            break;
+
+          // meta
           case 123: // all notes off
             TrackAllNotesOff(p, ctrk);
             break;
@@ -920,7 +975,7 @@ void PlayerMain(PlayerState* p) {
   if (p->livemidi == 1) {
     VFile *f = &p->midiinbuf;
     while (ReadEvent(p, f, &p->midiintracks[0], 1) == 1) {}
-    f->ptr = (u8**)MIDI_IN_BUF;
+    ResetLiveMidiBuffer(p);
   }
   
   if (p->status != PLAYER_STATUS_ACTIVE) {
@@ -947,7 +1002,7 @@ void PlayerMain(PlayerState* p) {
           trk->loopwait = p->t - p->loopstart;
         }
         
-        if (!ReadEvent(p, f, trk, 0)) {
+        if (!ReadEvent(p, f, trk, p->smftype == 0)) {
           return;
         }
         

@@ -88,7 +88,7 @@ typedef struct {
 typedef struct {
   u8 status;
   u8 priority;
-  u16 trackcount;
+  u16 trackcount; 
 
   u32 t;
   u32 framecount;
@@ -107,8 +107,11 @@ typedef struct {
 
   u16 ppqn;
   u16 trackmode;
+
   u8 mvol;
   u8 livemidi;
+  u8 smftype;
+  u8 res;
   
   VFile midiinbuf;
   TrackState midiintracks[16];
