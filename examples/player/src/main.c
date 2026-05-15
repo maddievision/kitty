@@ -23,6 +23,7 @@ extern void* demo_mid;
 
 int main() {
 	char str[32];
+	char error[256];
 	u8 livemidi =
 #ifdef LIVE_MIDI_INPUT
 		1;
@@ -41,18 +42,19 @@ int main() {
 	DemoBankInit();
 	s4aInit(&sappy, &sndbank, &drumbank, 12, 11, 9, 10, livemidi);
 #ifdef FIXED_ADDRESS_MIDI
-	s4aLoadSong(&sappy, (u8**) external_mid, 0);
+	s4aLoadSong(&sappy, (u8**) external_mid, error);
 #else
-	s4aLoadSong(&sappy, (u8**) &demo_mid, 0);
+	s4aLoadSong(&sappy, (u8**) &demo_mid, error);
 #endif
 	if (sappy.player.status == PLAYER_STATUS_READY) {
 		dputs("MIDI file is valid!");
 	} else {
 		dputs("Invalid MIDI file.");
+		dputs(error);
 	}
 
 #ifdef FIXED_ADDRESS_MIDI
-	siprintf(str, "MIDI from fixed address %p ready", external_mid);
+	siprintf(str, "MIDI @ %p ready", external_mid);
 	dputs(str);
 #else
 	dputs("Embedded MIDI ready");
