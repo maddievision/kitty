@@ -19,5 +19,6 @@ void s4aMain(SappyState* sappy);
 void s4aLoadSong(SappyState* sappy, u8** data, char* error);
 void s4aPlaySong(SappyState* sappy);
 void s4aStopSong(SappyState* sappy);
+void s4aReset(SappyState* sappy);
 
 #endif

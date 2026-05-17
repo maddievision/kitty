@@ -38,3 +38,7 @@ void s4aStopSong(SappyState* sappy) {
   PlayerStop(&sappy->player);
   SoundMainCGB(&sappy->snd); // force CGB update ahead of next frame
 }
+
+void s4aReset(SappyState* sappy) {
+  PlayerResetParams(&sappy->player);
+}
