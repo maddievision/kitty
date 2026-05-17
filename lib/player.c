@@ -137,23 +137,23 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     if (free == 0xFF) {
       for (int i = 0; i < snd->maxVoice; i++) {
         SoundChannel *chn = &snd->vchn[i];
-        if (chn->status == VOICE_STATUS_OFF || chn->userptr == 0) {
+        if (chn->status == VOICE_STATUS_OFF) {
           free = i;
           break;
         }
       }
     }
-    // 
-    // // find released notes
-    // if (free == 0xFF) {
-    //   for (int i = 0; i < snd->maxVoice; i++) {
-    //     SoundChannel *chn = &snd->vchn[i];
-    //     if (chn->userptr == 0) { //|| chn->status & VOICE_STATUS_RELEASE) {
-    //       free = i;
-    //       break;
-    //     }
-    //   }      
-    // }
+    
+    // find released notes
+    if (free == 0xFF) {
+      for (int i = 0; i < snd->maxVoice; i++) {
+        SoundChannel *chn = &snd->vchn[i];
+        if (VOICE_STATUS_RELEASE || chn->userptr == 0) {
+          free = i;
+          break;
+        }
+      }      
+    }
 
     // otherwise steal lower priority
     if (free == 0xFF) {
@@ -355,6 +355,25 @@ void ResetTrackParams(PlayerState *p, TrackState* trk) {
   trk->program = 0;
       
   trk->inst = &p->bnk->entries[0];
+}
+
+
+void PlayerResetParams(PlayerState *p) {
+  for (u8 i = 0; i < 16; i++) {
+    ResetTrackParams(p, &p->midiintracks[i]);
+    TrackState *trk = &p->midiintracks[i];
+    if (i == 9) {
+      trk->id = 0;
+      trk->bankmsb = 0x7F;
+      trk->banklsb = 0;
+      trk->inst = &p->dbnk->entries[0];
+    } else {
+      trk->id = i + 1;
+      trk->bankmsb = 0;
+      trk->banklsb = 0;
+      trk->inst = &p->bnk->entries[0];
+    }
+  }
 }
 
 void printaddr(VFile *f) {
@@ -903,7 +922,7 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
             } 
             break;
           case 91: //reverb
-            p->snd->reverb = b2;
+            p->snd->reverb = b2 >> 1;
             break;            
 
           // pedals
