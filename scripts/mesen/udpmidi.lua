@@ -1,5 +1,5 @@
-﻿midibuf = 0x3004000
-midibufsize = 0xF00
+﻿midibuf = 0x3007000
+midibufsize = 0x900
 midiptr = 0
 
 socket = require("socket.core")
