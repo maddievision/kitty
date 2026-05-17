@@ -28,18 +28,18 @@
 
     .equ    DMA_BUFFER_SIZE, 0x630
 
-    .equ    FRAME_LENGTH_5734, 0x60
-    .equ    FRAME_LENGTH_7884, 0x84             @ THIS MODE IS NOT SUPPORTED BY THIS ENGINE BECAUSE IT DOESN'T USE AN 8 ALIGNED BUFFER LENGTH
-    .equ    FRAME_LENGTH_10512, 0xB0
-    .equ    FRAME_LENGTH_13379, 0xE0            @ DEFAULT
-    .equ    FRAME_LENGTH_15768, 0x108
-    .equ    FRAME_LENGTH_18157, 0x130
-    .equ    FRAME_LENGTH_21024, 0x160
-    .equ    FRAME_LENGTH_26758, 0x1C0
-    .equ    FRAME_LENGTH_31536, 0x210
-    .equ    FRAME_LENGTH_36314, 0x260
-    .equ    FRAME_LENGTH_40137, 0x2A0
-    .equ    FRAME_LENGTH_42048, 0x2C0
+    .equ    FRAME_LENGTH_5734, 0x60   @ 1
+    .equ    FRAME_LENGTH_7884, 0x84   @ 2         @ THIS MODE IS NOT SUPPORTED BY THIS ENGINE BECAUSE IT DOESN'T USE AN 8 ALIGNED BUFFER LENGTH
+    .equ    FRAME_LENGTH_10512, 0xB0  @ 3
+    .equ    FRAME_LENGTH_13379, 0xE0  @ 4          @ DEFAULT
+    .equ    FRAME_LENGTH_15768, 0x108 @ 5
+    .equ    FRAME_LENGTH_18157, 0x130 @ 6
+    .equ    FRAME_LENGTH_21024, 0x160 @ 7
+    .equ    FRAME_LENGTH_26758, 0x1C0 @ 8
+    .equ    FRAME_LENGTH_31536, 0x210 @ 9
+    .equ    FRAME_LENGTH_36314, 0x260 @ 10
+    .equ    FRAME_LENGTH_40137, 0x2A0 @ 11
+    .equ    FRAME_LENGTH_42048, 0x2C0 @ 12
 
     /* stack variables */
     .equ    ARG_FRAME_LENGTH, 0x0               @ Number of samples per frame/buffer
@@ -111,7 +111,7 @@
     .equ    VAR_EXT_NOISE_SHAPE_RIGHT, 0xF      @ [byte] normally unused, used here for noise shaping
     .equ    VAR_DEF_PITCH_FAC, 0x18             @ [word] this value get's multiplied with the samplerate for the inter sample distance
     .equ    VAR_FIRST_CHN, 0x50                 @ [CHN struct] relative offset to channel array
-    .equ    VAR_PCM_BUFFER, 0x350
+    .equ    VAR_PCM_BUFFER, 0xFD0
 
     /* just some more defines */
     .equ    REG_DMA3_SRC, 0x040000D4
@@ -399,6 +399,7 @@ hq_buffer_literal:
      * R11: volume
      * R12: sampval diff
      * LR:  scratch */
+     .equ RSampleCountdown, R2
 C_mixing_setup:
     /* frequency and mixing loading routine */
     LDRSB   R6, [R4, #CHN_SAMPLE_STOR]

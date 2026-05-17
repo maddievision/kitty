@@ -16,7 +16,7 @@
 .equ SoundArea_DmaCount, 4
 .equ SoundArea_DmaPeriod, 0xB
 .equ SoundArea_SamplesPerFrame, 0x10
-.equ SoundArea_pcmbuf, 0x350
+.equ SoundArea_pcmbuf, 0xFD0
 
 /* HQ-Mixer args */
 .equ ARG_BUFFER_POS, 0x8
