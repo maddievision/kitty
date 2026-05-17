@@ -121,7 +121,8 @@ int main() {
 						#else
 								0;
 						#endif		
-					s4aInit(&sappy, &sndbank, &drumbank, 12, 11, 9, 10, livemidi);
+					s4aInit(&sappy, &sndbank, &drumbank, 32, 11, 4, 10, livemidi);
+// 					s4aInit(&sappy, &sndbank, &drumbank, 16, 11, 9, 10, livemidi);
 
 					s4aLoadSong(&sappy, (u8**) external_mid, error);					
 					if (sappy.player.status == PLAYER_STATUS_READY) {

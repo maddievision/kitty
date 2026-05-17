@@ -40,7 +40,8 @@ int main() {
 	pal_bg_mem[0x11] = CLR_GREEN;
 
 	DemoBankInit();
-	s4aInit(&sappy, &sndbank, &drumbank, 12, 11, 9, 10, livemidi);
+	s4aInit(&sappy, &sndbank, &drumbank, 32, 11, 4, 10, livemidi);
+// 	s4aInit(&sappy, &sndbank, &drumbank, 18, 11, 8, 10, livemidi);
 #ifdef FIXED_ADDRESS_MIDI
 	s4aLoadSong(&sappy, (u8**) external_mid, error);
 #else
@@ -59,7 +60,7 @@ int main() {
 #else
 	dputs("Embedded MIDI ready");
 #endif
-	dputs("Press A to play");
+	dputs("Press A to play, B to reset");
 #ifdef LIVE_MIDI_INPUT
 	dputs("Live MIDI enabled");
 #endif
@@ -79,6 +80,7 @@ int main() {
 				s4aPlaySong(&sappy);
 			} else if (key_hit(KEY_B)) {
 				s4aStopSong(&sappy);
+				s4aReset(&sappy);
 			}			
 		}
 	}

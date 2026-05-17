@@ -24,7 +24,9 @@ int main() {
 	irq_add(II_VBLANK, NULL);
 
 	DemoBankInit();
-	s4aInit(&sappy, &sndbank, &drumbank, 12, 11, 9, 10, livemidi);
+	s4aInit(&sappy, &sndbank, &drumbank, 32, 11, 4, 10, livemidi);
+// 	s4aInit(&sappy, &sndbank, &drumbank, 40, 11, 4, 10, livemidi);
+// 	s4aInit(&sappy, &sndbank, &drumbank, 48, 11, 3, 10, livemidi);
 #ifdef FIXED_ADDRESS_MIDI
 	s4aLoadSong(&sappy, (u8**) external_mid, 0);
 #else
