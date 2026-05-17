@@ -9,7 +9,7 @@ Demos:
 ## Features
 
 - Reads directly from MIDI file
-- Uses ipatix's HQ-Mixer https://github.com/ipatix/gba-hq-mixer to mix up to 12 sample voices
+- Uses ipatix's HQ-Mixer https://github.com/ipatix/gba-hq-mixer to mix up to 32* sample voices
 - Soundbank format similar to the one used in Sappy. Currently supported:
   - Single sample instruments
   - Multi sample instruments with keymap
@@ -27,6 +27,8 @@ Demos:
   - Supports the 2 GBC Pulse wave channels, only by switching channel output via CC 4 (1 = Channel 1, 2 = Channel 2)
   - GBC Duty cycle change via CC 2 (0 = 12.5%, 32 = 25%, 64 = 50%, 96 = 75%)
   - GBC hardware envelope set via CC 3 (64 = center, lowest speed (0). 0 = downwards at fastest speed, 127 = upwards at fastest speed)
+
+(* practical maximum depends on mixing sample rate. e.g., this can go up to 48 in frequency mode 3, but only up to 16 in frequency mode 8, so TBD/needs more testing)
 
 ## TODO
 
