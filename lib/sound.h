@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <tonc.h>
 
-#define MAX_VCE 62
+#define MAX_VCE 32
 
 // recommended absolute max voices per freq mode
 // 1 (5734hz)

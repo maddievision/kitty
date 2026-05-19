@@ -8,7 +8,7 @@
 .type MixerMain, %function
 
 .equ MixerID, 0x65736F52 @ Rose
-.equ SoundMainRAM, 0x3005000
+.equ SoundMainRAM, 0x3005200
 .equ PcmBufferSize, 0x630
 
 /* SoundArea struct */
@@ -16,7 +16,7 @@
 .equ SoundArea_DmaCount, 4
 .equ SoundArea_DmaPeriod, 0xB
 .equ SoundArea_SamplesPerFrame, 0x10
-.equ SoundArea_pcmbuf, 0xFD0
+.equ SoundArea_pcmbuf, 0x850
 
 /* HQ-Mixer args */
 .equ ARG_BUFFER_POS, 0x8

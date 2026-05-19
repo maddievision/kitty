@@ -2,7 +2,7 @@
 
 /* Enabled reading MIDI buffer from RAM (0x3004000). Intended for use with
    scripts/mesen/udpmidi.lua and https://codeberg.org/roses/midi2udp */
-#define LIVE_MIDI_INPUT
+// #define LIVE_MIDI_INPUT
 
 #include <tonc.h>
 #include <string>
@@ -17,7 +17,7 @@ extern "C" {
 #include "s4a.h"
 }
 
-#define MAX_SIZE 0x28000
+#define MAX_SIZE 0x24000
 #define MAX_ENTRIES 20
 
 SappyState sappy;
@@ -138,9 +138,9 @@ int main() {
 							key_poll();
 							
 							if (key_hit(KEY_B)) {
-								s4aStopSong(&sappy);
 								s4aSetVSync(&sappy, 0);
-								break;								
+								s4aStopSong(&sappy);
+								break;
 							}
 						}
 					} else {
@@ -148,7 +148,9 @@ int main() {
 						waitFor(KEY_B);
 					}
 				} else {
-					log("Nah, too big!");
+					char sizeStr[32];
+					siprintf(sizeStr, "%u", (MAX_SIZE / 1024));
+					log("Sorry! This MIDI exceeds\nthe max size of " + std::string(sizeStr) + "KB!\nPress B to return.");
 					waitFor(KEY_B);
 				}	
 			}

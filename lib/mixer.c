@@ -7,7 +7,7 @@
 // "MOff"
 #define MixerIDOff 0x66664F4D
 
-#define SoundMainRAMDest 0x3005000
+#define SoundMainRAMDest 0x3005200
 
 extern void* SoundMainRAM;	
 extern void* SoundMainRAM_end;	
