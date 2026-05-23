@@ -1,6 +1,6 @@
-## sappy4all (S4A)
+## Kitty Advance
 
-GBA MIDI player driver using [gba-hq-mixer](https://github.com/ipatix/gba-hq-mixer)
+MIDI-based GBA sound driver supporting samples + PSG channels
 
 Demos:
 - Demo song: ([Video](https://streamable.com/yfdqu0)) ([GSF](https://files.maddie.rocks/fonsett/s4a_demo.gsf)) ([GBA](https://files.maddie.rocks/fonsett/s4a_demo.gba))
@@ -10,7 +10,7 @@ Demos:
 
 - Reads directly from MIDI file
 - Uses ipatix's HQ-Mixer https://github.com/ipatix/gba-hq-mixer to mix up to 32* sample voices
-- Soundbank format similar to the one used in Sappy. Currently supported:
+- Soundbank format similar to the one used in MP2k/Sappy. Currently supported:
   - Single sample instruments
   - Multi sample instruments with keymap
   - Drum kit
@@ -27,17 +27,19 @@ Demos:
   - Supports the 2 GBC Pulse wave channels, only by switching channel output via CC 4 (1 = Channel 1, 2 = Channel 2)
   - GBC Duty cycle change via CC 2 (0 = 12.5%, 32 = 25%, 64 = 50%, 96 = 75%)
   - GBC hardware envelope set via CC 3 (64 = center, lowest speed (0). 0 = downwards at fastest speed, 127 = upwards at fastest speed)
+- Live MIDI input support by reading a buffer of MIDI commands in memory
 
 (* practical maximum depends on mixing sample rate. e.g., this can go up to 48 in frequency mode 3, but only up to 16 in frequency mode 8, so TBD/needs more testing)
 
 ## TODO
 
 - TBD
-- Add support for GBC Wave and Noise channels in general
-- Additional Soundbank instrument types:
+- GBC Wave setting
+- GBC Noise channel support
+- Complete soundbank implementation:
   - GBC with ADSR envelopes
   - HQ Mixer synth instruments
-- Better tooling for adding soundbanks, samples, and MIDI files
-- Generally clean up code
-- Live MIDI In support (emulator memory patch in + link cable planned)
-- Add IT-style lowpass filter to mixer
+- GBC software envelopes for duty and pitch
+- Tooling soundbank creation
+- Additional mixer features:
+  - Lowpass filters per voice
