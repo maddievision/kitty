@@ -1,8 +1,10 @@
-## Kitty Advance
+<p align="center"><img alt="Pink GBA with cat ears" src="https://files.maddie.rocks/fonsett/kitty.png" width="128" /></p>
+
+# Kitty Advance
 
 MIDI-based GBA sound driver supporting samples + PSG channels
 
-Demos:
+## Demos:
 - Demo song: ([Video](https://streamable.com/yfdqu0)) ([GSF](https://files.maddie.rocks/fonsett/s4a_demo.gsf)) ([GBA](https://files.maddie.rocks/fonsett/s4a_demo.gba))
 - Hare Hare Yukai: ([Video](https://streamable.com/e16lkr)) ([GSF](https://files.maddie.rocks/fonsett/s4a_harehareyukai.gsf)) ([GBA](https://files.maddie.rocks/fonsett/s4a_harehareyukai.gba))
 
