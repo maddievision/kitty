@@ -7,9 +7,9 @@
 #include <tonc_bios.h>
 #include "demobank.h"
 #include "debug.h"
-#include "s4a.h"
+#include "kitty.h"
 
-SappyState sappy;
+KittyState kitty;
 
 #ifdef FIXED_ADDRESS_MIDI
 void* external_mid = (void*)0x8030000;
@@ -24,26 +24,26 @@ int main() {
 	irq_add(II_VBLANK, NULL);
 
 	DemoBankInit();
-	s4aInit(&sappy, &sndbank, &drumbank, 32, 11, 4, 10, livemidi);
-// 	s4aInit(&sappy, &sndbank, &drumbank, 40, 11, 4, 10, livemidi);
-// 	s4aInit(&sappy, &sndbank, &drumbank, 48, 11, 3, 10, livemidi);
+	KittyInit(&kitty, &sndbank, &drumbank, 32, 11, 4, 10, livemidi);
+// 	KittyInit(&kitty, &sndbank, &drumbank, 40, 11, 4, 10, livemidi);
+// 	KittyInit(&kitty, &sndbank, &drumbank, 48, 11, 3, 10, livemidi);
 #ifdef FIXED_ADDRESS_MIDI
-	s4aLoadSong(&sappy, (u8**) external_mid, 0);
+	KittyLoadSong(&kitty, (u8**) external_mid, 0);
 #else
-	s4aLoadSong(&sappy, (u8**) &demo_mid, 0);
+	KittyLoadSong(&kitty, (u8**) &demo_mid, 0);
 #endif
-	if (sappy.player.status == PLAYER_STATUS_READY) {
+	if (kitty.player.status == PLAYER_STATUS_READY) {
 	} else {
 		return 1;
 	}
 
-	s4aPlaySong(&sappy);
-	s4aSetVSync(&sappy, 1);
+	KittyPlaySong(&kitty);
+	KittySetVSync(&kitty, 1);
 
 	while(1) {
 		VBlankIntrWait();
-		s4aVSync(&sappy);
-		s4aMain(&sappy);
+		KittyVSync(&kitty);
+		KittyMain(&kitty);
 	}
 	return 0;
 }

@@ -11,9 +11,9 @@
 #include <tonc_bios.h>
 #include "demobank.h"
 #include "debug.h"
-#include "s4a.h"
+#include "kitty.h"
 
-SappyState sappy;
+KittyState kitty;
 
 #ifdef FIXED_ADDRESS_MIDI
 void* external_mid = (void*)0x8030000;
@@ -40,14 +40,14 @@ int main() {
 	pal_bg_mem[0x11] = CLR_GREEN;
 
 	DemoBankInit();
-	s4aInit(&sappy, &sndbank, &drumbank, 32, 11, 4, 10, livemidi);
-// 	s4aInit(&sappy, &sndbank, &drumbank, 18, 11, 8, 10, livemidi);
+	KittyInit(&kitty, &sndbank, &drumbank, 32, 11, 4, 10, livemidi);
+// 	KittyInit(&kitty, &sndbank, &drumbank, 18, 11, 8, 10, livemidi);
 #ifdef FIXED_ADDRESS_MIDI
-	s4aLoadSong(&sappy, (u8**) external_mid, error);
+	KittyLoadSong(&kitty, (u8**) external_mid, error);
 #else
-	s4aLoadSong(&sappy, (u8**) &demo_mid, error);
+	KittyLoadSong(&kitty, (u8**) &demo_mid, error);
 #endif
-	if (sappy.player.status == PLAYER_STATUS_READY) {
+	if (kitty.player.status == PLAYER_STATUS_READY) {
 		dputs("MIDI file is valid!");
 	} else {
 		dputs("Invalid MIDI file.");
@@ -65,22 +65,22 @@ int main() {
 	dputs("Live MIDI enabled");
 #endif
 
-	s4aSetVSync(&sappy, 1);
+	KittySetVSync(&kitty, 1);
 
 	while(1) {
 		VBlankIntrWait();
-		s4aVSync(&sappy);
-		s4aMain(&sappy);
-		siprintf(str, "%ld", sappy.player.t);
+		KittyVSync(&kitty);
+		KittyMain(&kitty);
+		siprintf(str, "%ld", kitty.player.t);
 		dstatus(str);
 		key_poll();
 		
 		if (key_hit(KEY_DIR|KEY_B|KEY_A)) {
 			if (key_hit(KEY_A)) {
-				s4aPlaySong(&sappy);
+				KittyPlaySong(&kitty);
 			} else if (key_hit(KEY_B)) {
-				s4aStopSong(&sappy);
-				s4aReset(&sappy);
+				KittyStopSong(&kitty);
+				KittyReset(&kitty);
 			}			
 		}
 	}

@@ -14,13 +14,13 @@ extern "C" {
 #include "../../shared/vendor/gba-flashcartio/lib/flashcartio.h"
 #include "debug.h"
 #include "demobank.h"
-#include "s4a.h"
+#include "kitty.h"
 }
 
 #define MAX_SIZE 0x24000
 #define MAX_ENTRIES 20
 
-SappyState sappy;
+KittyState kitty;
 __attribute__((section(".ewram"))) char external_mid[MAX_SIZE];
 
 void listDir(std::vector<FILINFO> items,
@@ -121,25 +121,25 @@ int main() {
 						#else
 								0;
 						#endif		
-					s4aInit(&sappy, &sndbank, &drumbank, 32, 11, 4, 10, livemidi);
-// 					s4aInit(&sappy, &sndbank, &drumbank, 16, 11, 9, 10, livemidi);
+					KittyInit(&kitty, &sndbank, &drumbank, 32, 11, 4, 10, livemidi);
+// 					KittyInit(&kitty, &sndbank, &drumbank, 16, 11, 9, 10, livemidi);
 
-					s4aLoadSong(&sappy, (u8**) external_mid, error);					
-					if (sappy.player.status == PLAYER_STATUS_READY) {
-						log("Playing " + std::string(selectedItem.fname) + "!\n" + std::to_string(sappy.player.trackcount) + " tracks.\nPress B to stop.");
-						s4aPlaySong(&sappy);
-						s4aSetVSync(&sappy, 1);						
+					KittyLoadSong(&kitty, (u8**) external_mid, error);					
+					if (kitty.player.status == PLAYER_STATUS_READY) {
+						log("Playing " + std::string(selectedItem.fname) + "!\n" + std::to_string(kitty.player.trackcount) + " tracks.\nPress B to stop.");
+						KittyPlaySong(&kitty);
+						KittySetVSync(&kitty, 1);						
 						while(1) {
 							VBlankIntrWait();
-							s4aVSync(&sappy);
-							s4aMain(&sappy);
-							// siprintf(str, "%ld", sappy.player.t);
+							KittyVSync(&kitty);
+							KittyMain(&kitty);
+							// siprintf(str, "%ld", kitty.player.t);
 							// dstatus(str);
 							key_poll();
 							
 							if (key_hit(KEY_B)) {
-								s4aSetVSync(&sappy, 0);
-								s4aStopSong(&sappy);
+								KittySetVSync(&kitty, 0);
+								KittyStopSong(&kitty);
 								break;
 							}
 						}
