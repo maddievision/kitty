@@ -830,7 +830,11 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
             ctrk->banklsb = b2;
             //   TrackUpdateInst(p, ctrk);
             break;
-
+          case 119:
+            // Program update CC alternative
+            ctrk->program = b2;
+            TrackUpdateInst(p, ctrk);
+            break;
           // rpn
           case 100: //rpn lsb
             ctrk->rpnlo = b2;
