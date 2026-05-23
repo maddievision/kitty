@@ -1,5 +1,8 @@
 <p align="center"><img alt="Pink GBA with cat ears" src="https://files.maddie.rocks/fonsett/kitty.png" width="128" /></p>
 
+> [!CAUTION]
+> This sound driver is still heavily WIP and is not quite ready for use yet! You can expect I will begin adding API and usage documentation once things get more in a state where others could start using it. Please reach out if you're interested in testing :)
+
 # Kitty Advance
 
 MIDI-based GBA sound driver supporting samples + PSG channels
@@ -45,3 +48,4 @@ MIDI-based GBA sound driver supporting samples + PSG channels
 - Tooling soundbank creation
 - Additional mixer features:
   - Lowpass filters per voice
+- Support multiple players. (In theory it probably already works, 
