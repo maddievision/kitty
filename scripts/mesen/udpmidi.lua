@@ -1,5 +1,6 @@
-﻿midibuf = 0x3007000
-midibufsize = 0x900
+﻿midibuf = emu.getLabelAddress("midiCopyBuffer").address + 0x3000000
+midibufsizeptr = emu.getLabelAddress("midiCopyBufferSize").address + 0x3000000
+midibufsize = 0x800
 midiptr = 0
 
 socket = require("socket.core")
@@ -13,8 +14,8 @@ function beginmidiframe()
 end
 
 function endmidiframe()
-  emu.write32(midiptr, 0x2FFF, emu.memType.gbaDebug)
-  midiptr = midiptr + 4
+  local len = midiptr - midibuf
+  emu.write16(midibufsizeptr, len, emu.memType.gbaDebug)
 end
 
 function writemidi(msg)

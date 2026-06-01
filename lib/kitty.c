@@ -1,11 +1,16 @@
 #include "kitty.h"
 #include "cgbsound.h"
 #include "mixer.h"
+#include "player.h"
 
-void KittyInit(KittyState* kitty, SoundBank* bank0, SoundBank* bank127, u8 voices, u8 mvol, u8 freqMode, u8 reverb, u8 livemidi) {
-  MixerInit(&kitty->snd, voices, mvol, freqMode, reverb);
+void KittyInit(KittyState* kitty, KittyConfig config) {
+  MixerInit(&kitty->snd, config.voices, config.masterVolume, config.freqMode, config.reverb);
   SoundInitCGB(&kitty->snd);
-  PlayerInit(&kitty->player, &kitty->snd, bank0, bank127, livemidi);
+  PlayerInit(&kitty->player, &kitty->snd, config.bank0, config.bank127);
+}
+
+void KittyLiveMidiInit(KittyState *kitty, KittyLiveMidiMode mode, u8* buffer, vu16* bufferSizeInfo) {
+  PlayerLiveMidiInit(&kitty->player, mode, buffer, bufferSizeInfo);
 }
 
 void KittySetVSync(KittyState* kitty, u8 enabled) {
@@ -37,6 +42,10 @@ void KittyPlaySong(KittyState* kitty) {
 void KittyStopSong(KittyState* kitty) {
   PlayerStop(&kitty->player);
   SoundMainCGB(&kitty->snd); // force CGB update ahead of next frame
+}
+
+void KittyAllNotesOff(KittyState* kitty) {
+  PlayerAllNotesOff(&kitty->player);
 }
 
 void KittyReset(KittyState* kitty) {

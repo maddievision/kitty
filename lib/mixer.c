@@ -1,5 +1,6 @@
 #include "mixer.h"
 #include <tonc.h>
+#include <string.h>
 
 // "Rose"
 #define MixerID 0x65736F52
@@ -7,7 +8,8 @@
 // "MOff"
 #define MixerIDOff 0x66664F4D
 
-#define SoundMainRAMDest 0x3005200
+u8 SoundMainRAMDest[0xAC0];
+u8 hq_buffer_ptr[0x380];
 
 extern void* SoundMainRAM;	
 extern void* SoundMainRAM_end;	
@@ -33,7 +35,7 @@ void SetupSoundMainRAM() {
 }
 
 void MixerInit(SoundArea *snd, u8 voices, u8 mvol, u8 freqMode, u8 reverb) {
-  toncset(snd, 0, sizeof(snd));
+  memset(snd, 0, sizeof(SoundArea));
   SetupSoundMainRAM();
 
   if (REG_DMA1CNT & DMA_REPEAT) {

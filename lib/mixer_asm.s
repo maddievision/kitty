@@ -8,7 +8,7 @@
 .type MixerMain, %function
 
 .equ MixerID, 0x65736F52 @ Rose
-.equ SoundMainRAM, 0x3005200
+.extern SoundMainRAMDest
 .equ PcmBufferSize, 0x630
 
 /* SoundArea struct */
@@ -60,6 +60,6 @@ MainMixer_NoOffset:
   
 .align 2, 0
   l_MixerID: .word MixerID
-  l_SoundMainRAM: .word SoundMainRAM + 1
+  l_SoundMainRAM: .word SoundMainRAMDest + 1
   l_PcmBufferSize: .word PcmBufferSize
   l_SoundArea_pcmbuf: .word SoundArea_pcmbuf

@@ -22,6 +22,7 @@
 #define COUNTER_SHIFT 3
 #define FRAME_INTERVAL (16666 >> COUNTER_SHIFT)
 
+
 #define MIDI_IN_BUF 0x3007000
 
 typedef struct {
@@ -111,15 +112,41 @@ typedef struct {
   u8 mvol;                  //838
   u8 livemidi;              //839
   u8 smftype;               //83A
-  u8 res;                   //83B
+  u8 rbMidiParseState;      //83B
   
-  VFile midiinbuf;                //83C
-  TrackState midiintracks[16];    //840
-} PlayerState; //1054
+  VFile midiinbuf;              //83C
+  TrackState midiintracks[16];  //840
+  u8* liveMidiBuffer;         //844
+  vu16* liveMidiBufferSizeInfo; //848
+  
+  u16 liveMidiReadPos;            //84C
+  u16 rbMidiParseMessageStartPos; //84E
+  
+  u8 timeSigNum;                  //850
+  u8 timeSigDen;                  //851
+  u8 beatNum;                     //853
+  u8 beatTicks;                   //854
 
-void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8 livemidi);
+  u16 measure;                    //852  
+  u16 measureAtLoop;
+  u8 beatNumAtLoop;
+  u8 beatTicksAtLoop;
+  
+  u8 loopInfoSet;
+  u8 res[3];
+} PlayerState; //1060
+
+typedef enum {
+  KTP_LIVEMIDI_MODE_OFF = 0,
+  KTP_LIVEMIDI_MODE_FIXED_BUFFER = 1,
+  KTP_LIVEMIDI_MODE_RINGBUFFER = 2
+} PlayerLiveMidiMode;
+
+void PlayerInit(PlayerState* state, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk);
+void PlayerLiveMidiInit(PlayerState *state, PlayerLiveMidiMode mode, u8* buffer, vu16* bufferSizeInfo);
 void PlayerPlay(PlayerState* state);
 void PlayerStop(PlayerState* state);
+void PlayerAllNotesOff(PlayerState* state);
 void PlayerResetParams(PlayerState* state);
 void PlayerMain(PlayerState* state);
 void PlayerOpen(PlayerState* state, u8** data, char* error);

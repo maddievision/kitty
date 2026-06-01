@@ -390,15 +390,19 @@ void ReadStr(VFile *f, char *str, u32 size) {
 }
 
 u32 ReadU32(VFile *f) {
-  // printaddr(f);
-  // u32 v = *((u32*) f->ptr);
-  // can't read 32 outside of 32 boundary
   u32 v = *((u8*) f->ptr++);
   v |= *((u8*) f->ptr++) << 8;
   v |= *((u8*) f->ptr++) << 16;
   v |= *((u8*) f->ptr++) << 24;
   return v;
 }
+
+u16 ReadU16(VFile *f) {
+  u16 v = *((u8*) f->ptr++);
+  v |= *((u8*) f->ptr++) << 8;
+  return v;
+}
+
 
 void WriteU32(VFile *f, u32 val) {
   *((u8*) f->ptr++) = val & 0xFF;
@@ -408,17 +412,10 @@ void WriteU32(VFile *f, u32 val) {
 }
 
 u32 ReadBEU32(VFile *f) {
-//   printaddr(f);
-//   u32 v = *((u32*) f->ptr);
-//   f->ptr += 4;
-//   return (v >> 24) | ((v & 0xFF0000) >> 8) | ((v & 0xFF00) << 8) | ((v & 0xFF) << 24);
-  // can't read 32 outside of 32 boundary
-
   u32 v = *((u8*) f->ptr++) << 24;
   v |= *((u8*) f->ptr++) << 16;
   v |= *((u8*) f->ptr++) << 8;
   v |= *((u8*) f->ptr++);
-  
   return v;
 }
 
@@ -426,22 +423,16 @@ u32 ReadBEU24(VFile *f) {
   u32 v = *((u8*) f->ptr++) <<16;
   v |= *((u8*) f->ptr++) << 8;
   v |= *((u8*) f->ptr++);
-  
   return v;
 }
 
 u16 ReadBEU16(VFile *f) {
-  // printaddr(f);
   u16 v = *((u8*) f->ptr++) << 8;
   v |= *((u8*) f->ptr++);
   return v;
-//   u16 v = *((u16*) f->ptr);
-//   f->ptr += 2;
-//   return (v >> 8) | ((v & 0xFF) << 8);
 }
 
 u32 ReadVLQ(VFile* f) {
-  // printaddr(f);
   u8 r = *((u8*) f->ptr++);
   u32 v = r & 0x7F;
   u8 c = 0;  
@@ -459,7 +450,6 @@ u32 ReadVLQ(VFile* f) {
 }
 
 inline u8 ReadU8(VFile *f) {
-//  printaddr(f);
   return *((u8*) f->ptr++);
 }
 
@@ -475,24 +465,39 @@ void PlayerReset(PlayerState* p) {
   }
 
   p->t = 0;
+  p->tempo = 120;
+  p->timeSigNum = 4;
+  p->timeSigDen = 2;
+  p->measure = 0;
+  p->beatNum = 0;
+  p->beatTicks = 0;
+
   p->framecount = 0;
   p->nextcount = 0;
   p->tickinterval = (500000 / p->ppqn) >> COUNTER_SHIFT;
 }
 
 void ResetLiveMidiBuffer(PlayerState *p) {
-  p->midiinbuf.ptr = (u8**)MIDI_IN_BUF;
-  WriteU32(&p->midiinbuf, 0x2FFF); // midi eot
-  p->midiinbuf.ptr = (u8**)MIDI_IN_BUF;
+  if (p->livemidi == KTP_LIVEMIDI_MODE_FIXED_BUFFER) {
+    *p->liveMidiBufferSizeInfo = 0;
+    p->midiinbuf.ptr = p->liveMidiBuffer;
+  }
 }
 
-void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk, u8 livemidi) {  
+void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk) {  
   p->snd = snd;
   p->bnk = bnk;
   p->dbnk = dbnk;
   p->f.ptr = 0;
   p->trackcount = 0;
-  p->livemidi = livemidi;
+  p->livemidi = KTP_LIVEMIDI_MODE_OFF;
+  p->tempo = 120;
+  p->timeSigNum = 4;
+  p->timeSigDen = 2;
+  p->measure = 0;
+  p->beatNum = 0;
+  p->beatTicks = 0;
+  
   for (int i = 0; i < 16; i++) {
     ResetTrackParams(p, &p->midiintracks[i]);
     TrackState *trk = &p->midiintracks[i];
@@ -508,8 +513,14 @@ void PlayerInit(PlayerState* p, SoundArea* snd, SoundBank* bnk, SoundBank* dbnk,
       trk->inst = &p->bnk->entries[0];
     }
   }
-  ResetLiveMidiBuffer(p);
   PlayerReset(p);
+}
+
+void PlayerLiveMidiInit(PlayerState *p, PlayerLiveMidiMode mode, u8* buffer, vu16* bufferSizeInfo) {
+  p->livemidi = mode;
+  p->liveMidiBuffer = buffer;
+  p->liveMidiBufferSizeInfo = bufferSizeInfo;
+  ResetLiveMidiBuffer(p);
 }
 
 void PlayerStop(PlayerState* p) {
@@ -531,8 +542,15 @@ void PlayerStop(PlayerState* p) {
 
 }
 
+void PlayerAllNotesOff(PlayerState* p) {
+  KillAllNotes(p);
+}
+
+
 void PlayerOpen(PlayerState* p, u8** data, char* error) {
   PlayerReset(p);
+  u8 tempoSet = 0;
+  u8 timeSigSet = 0;
   p->f.ptr = data;
   VFile *f = &p->f;
   u32 r;
@@ -654,6 +672,18 @@ void PlayerOpen(PlayerState* p, u8** data, char* error) {
             }
             u32 uspt = ReadBEU24(f);
             tickinterval = (uspt / ppqn) >> COUNTER_SHIFT;
+            p->tempo = 60000000 / uspt;
+            tempoSet = 0;            
+            break;
+          case 0x58:
+            if (len != 4) {
+              if (error) strcpy(error, "Time sig event must be 4 bytes long!");
+              return;
+            }
+            p->timeSigNum = ReadU8(f);
+            p->timeSigDen = ReadU8(f);
+            ReadU8(f);
+            ReadU8(f);
             break;
           default:
             f->ptr += len;
@@ -719,6 +749,13 @@ void PlayerPlay(PlayerState* p) {
 
   p->status = PLAYER_STATUS_ACTIVE;
   p->t = 0;
+  p->loopInfoSet = 0;
+  p->measure = 0;
+  p->measureAtLoop = 0;
+  p->beatNum = 0;
+  p->beatNumAtLoop = 0;
+  p->beatTicks = 0;
+  p->beatTicksAtLoop = 0;
   p->framecount = 0;
   p->nextcount = 0;
   p->tickinterval = (500000 / p->ppqn) >> COUNTER_SHIFT;
@@ -744,6 +781,14 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
       p->tempo = 60000000 / uspt;
     //   siprintf(str, "MSPT: %d", p->tickinterval);
     //   dputs(str);
+    } else if (meta == 0x58) {
+      p->timeSigNum = ReadU8(f);
+      p->timeSigDen = ReadU8(f);
+      ReadU8(f); // ticks per metronome tick
+      ReadU8(f); // 32nd notes per beat
+      p->measure++;
+      p->beatNum = 0;
+      p->beatTicks = 0;
     } else if (meta == 0x2F) {
       if (trk) {
         trk->status = TRACK_STATUS_INACTIVE;
@@ -995,9 +1040,13 @@ void PlayerMain(PlayerState* p) {
     TrackUpdateLFO(p, trk);
   }
   
-  if (p->livemidi == 1) {
-    VFile *f = &p->midiinbuf;
-    while (ReadEvent(p, f, &p->midiintracks[0], 1) == 1) {}
+  if (p->livemidi == KTP_LIVEMIDI_MODE_FIXED_BUFFER) {
+    u16 midicount = *p->liveMidiBufferSizeInfo;
+    if (midicount) {
+      VFile *f = &p->midiinbuf;
+      u32 limitptr = (u32)f->ptr + midicount;
+      while (((u32)f->ptr < limitptr) && ReadEvent(p, f, &p->midiintracks[0], 1) == 1);
+    }
     ResetLiveMidiBuffer(p);
   }
   
@@ -1005,9 +1054,20 @@ void PlayerMain(PlayerState* p) {
     return;
   }
 
-
   while (p->framecount >= p->nextcount) {
     p->t++;
+    p->beatTicks++;
+    u16 ticksPerBeat = p->timeSigDen == 2 ? p->ppqn : p->timeSigDen > 2 ? p->ppqn >> (p->timeSigDen - 2) : p->ppqn << (2 - p->timeSigDen);    
+    if (p->beatTicks >= ticksPerBeat) {
+      p->beatTicks -= ticksPerBeat;
+      p->beatNum++;
+    }
+    
+    if (p->beatNum >= p->timeSigNum) {
+      p->beatNum -= p->timeSigNum;
+      p->measure++;
+    }
+    
     activeCount = 0;
     for (u8 i = 0; i < p->trackcount; i++) {
       TrackState* trk = &p->tracks[i];
@@ -1032,6 +1092,13 @@ void PlayerMain(PlayerState* p) {
         u32 dt = ReadVLQ(f);
         trk->wait = dt;
       }
+      if (p->loopend > p->loopstart && p->t >= p->loopstart && !p->loopInfoSet) {
+        p->loopInfoSet = 1;
+        p->measureAtLoop = p->measure;
+        p->beatNumAtLoop = p->beatNum;
+        p->beatTicksAtLoop = p->beatTicks;
+      }
+
     }
 
 
@@ -1046,6 +1113,9 @@ void PlayerMain(PlayerState* p) {
       p->t = p->loopstart;
       p->framecount = p->loopstartcount;
       p->nextcount -= dist;
+      p->measure = p->measureAtLoop;
+      p->beatNum = p->beatNumAtLoop;
+      p->beatTicks = p->beatTicksAtLoop;
     }
 
     p->nextcount += p->tickinterval;
