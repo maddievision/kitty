@@ -240,7 +240,6 @@ void TrackSusOff(SoundArea *snd, TrackState *trk) {
     if (chn->userptr == trk && chn->susoff == 1) {
       chn->status = VOICE_STATUS_RELEASE;
       chn->userptr = 0;
-      break;
     }
   }
 }
