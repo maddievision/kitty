@@ -79,7 +79,8 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
       u8 freqnote = (s8)note + trk->pbsemi;
       switch (i) {
         case 3:
-        break;
+          chn->freq = MidiKey2FreqCGBNoise(freqnote);
+          break;
         case 2:
           freqnote += 12;
         default:
@@ -926,14 +927,15 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
 
           // sound output override
           case 4: //sound output
-          ctrk->output = b2;
-          break;
+            ctrk->output = b2 <= 4 ? b2 : 0;
+            ctrk->cgbenv = 0;
+            ctrk->duty = 0;
+            break;
 
           // cgb
-          case 2: //duty cycle
-            u8 duty = b2 >> 5;
-            if (ctrk->duty != duty) {
-              ctrk->duty = duty;
+          case 2: //duty/shape/wave
+            if (ctrk->duty != b2) {
+              ctrk->duty = b2;
               TrackUpdateDuty(p->snd, ctrk);
             }
             break;

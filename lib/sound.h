@@ -53,7 +53,8 @@ typedef struct {
   u8 volecho;           // C
   u8 echorem;           // D
   u16 res;              // E-F
-  u32 res2[2];          // 10
+  u32 lfreq;            // 10
+  u32 res2;             // 14
   u32 smptimer;         // 18
   u32 finepos;          // 1C
   u32 freq;             // 20

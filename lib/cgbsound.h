@@ -11,6 +11,7 @@
 #define CGB_CHANNEL_NOISE 3
 
 u32 MidiKey2FreqCGB(u8 mk, u8 fp);
+u8 MidiKey2FreqCGBNoise(u8 mk);
 void SoundInitCGB(SoundArea *snd);
 void SoundMainCGB(SoundArea *snd);
 
