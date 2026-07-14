@@ -181,7 +181,9 @@ void PlayNote(PlayerState *p, TrackState *trk, u8 note, u8 vel) {
     u16 amp = chn->amp * 2;
     avel = (avel * amp) >> 8;
     chn->volr = ((u16)trk->volr * avel) >> VOL_BITS;
+    chn->volr = ((u16)chn->volr * (u16)p->svol) >> 8;
     chn->voll = ((u16)trk->voll * avel) >> VOL_BITS;
+    chn->voll = ((u16)chn->voll * (u16)p->svol) >> 8;
     chn->vel = vel;
     chn->attack = inst->attack;
     chn->decay = inst->decay;
@@ -247,9 +249,11 @@ void TrackSusOff(SoundArea *snd, TrackState *trk) {
 
 void TrackUpdateVol(PlayerState *p, TrackState* trk) {
   SoundArea *snd = p->snd;
-  u16 vol = ((u16)sq7lut[trk->vol] * (u16)(trk->exp << 1)) >> 8;
-  vol = (vol * (u16)p->mvol) >> 8;
+  // for cgb
   trk->linvol = ((u16)(trk->vol << 1) * (u16)(trk->exp << 1)) >> 8;
+
+  // for samples
+  u16 vol = ((u16)sq7lut[trk->vol] * (u16)(trk->exp << 1)) >> 8;
   u16 panl = trk->pan <= 0x40 ? 0xFF : ((0x7F - trk->pan) << 2); //sq7lut[(0x7F - trk->pan) << 1];
   u16 panr = trk->pan >= 0x40 ? 0xFF : (trk->pan << 2);//sq7lut[trk->pan << 1];
   trk->voll = (panl * vol) >> 8;
@@ -271,7 +275,9 @@ void TrackUpdateVol(PlayerState *p, TrackState* trk) {
       u16 amp = chn->amp * 2;
       avel = (avel * amp) >> 8;
       chn->voll = ((u16)trk->voll * avel) >> VOL_BITS;
+      chn->voll = ((u16)chn->voll * (u16)p->svol) >> 8;
       chn->volr = ((u16)trk->volr * avel) >> VOL_BITS;
+      chn->volr = ((u16)chn->volr * (u16)p->svol) >> 8;
     }
   }
 }
@@ -374,6 +380,7 @@ void PlayerResetParams(PlayerState *p) {
       trk->inst = &p->bnk->entries[0];
     }
   }
+  p->svol = SVOL_DEFAULT;
 }
 
 void printaddr(VFile *f) {
@@ -459,7 +466,7 @@ inline u8 ReadU8(VFile *f) {
 void PlayerReset(PlayerState* p) {
   KillAllNotes(p);
   p->status = PLAYER_STATUS_INACTIVE;
-  p->mvol = MVOL_DEFAULT;
+  p->svol = SVOL_DEFAULT;
   for (int i = 0; i < p->trackcount; i++) {
     p->tracks[0].status = TRACK_STATUS_INACTIVE;
   }
@@ -1007,7 +1014,9 @@ u8 ReadEvent(PlayerState* p, VFile *f, TrackState* trk, u8 useChannelAsTrack) {
           case 33: //sappy priority;
             ctrk->priority = b2;
             break;
-
+          case 50: //song vol
+            p->svol = b2 << 1;
+            break;
           // meta
           case 123: // all notes off
             TrackAllNotesOff(p, ctrk);

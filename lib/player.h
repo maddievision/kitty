@@ -16,8 +16,8 @@
 #define MAX_TRACKS 32
 #define MAX_INST 128
 
-#define MVOL_DEFAULT 0xFF
-#define VOL_BITS 10
+#define SVOL_DEFAULT 0x40
+#define VOL_BITS 8
 
 #define COUNTER_SHIFT 3
 #define FRAME_INTERVAL (16666 >> COUNTER_SHIFT)
@@ -109,7 +109,7 @@ typedef struct {
   u16 ppqn;                 //834
   u16 trackmode;            //836
 
-  u8 mvol;                  //838
+  u8 svol;                  //838
   u8 livemidi;              //839
   u8 smftype;               //83A
   u8 rbMidiParseState;      //83B
